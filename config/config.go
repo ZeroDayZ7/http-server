@@ -1,131 +1,116 @@
+// internal/config/config.go
 package config
 
 import (
 	"fmt"
-	"os"
-	"strconv"
 	"time"
 
+	"github.com/spf13/viper"
 	"github.com/zerodayz7/http-server/internal/shared/logger"
-
-	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 )
 
-type Config struct {
-	AppVersion         string
-	MySQLDSN           string
-	Port               string
-	Env                string
-	CORSAllowOrigins   string
-	RateLimitMax       int
-	RateLimitWindow    time.Duration
-	BodyLimitMB        int
-	ShutdownTimeoutSec int
-	DBMaxOpenConns     int
-	DBMaxIdleConns     int
-	DBConnMaxLifetime  time.Duration
+// =================== Sekcje konfiguracji ===================
+
+type ServerConfig struct {
+	AppName       string
+	Port          string
+	BodyLimitMB   int
+	Env           string
+	AppVersion    string
+	ServerHeader  string
+	Prefork       bool
+	CaseSensitive bool
+	StrictRouting bool
+	IdleTimeout   time.Duration
+	ReadTimeout   time.Duration
+	WriteTimeout  time.Duration
 }
 
+type DBConfig struct {
+	DSN             string
+	MaxOpenConns    int
+	MaxIdleConns    int
+	ConnMaxLifetime time.Duration
+}
+
+type RateLimitConfig struct {
+	Max    int
+	Window time.Duration
+}
+
+type Config struct {
+	Server    ServerConfig
+	Database  DBConfig
+	RateLimit RateLimitConfig
+	CORSAllow string
+	Shutdown  time.Duration
+}
+
+// =================== LoadConfig ===================
+
 func LoadConfig(log *logger.Logger) (Config, error) {
-	log.Info("Loading .env file")
-	err := godotenv.Load()
-	if err != nil && !os.IsNotExist(err) {
-		log.Error("Error loading .env", zap.Error(err))
-		return Config{}, fmt.Errorf("error loading .env: %v", err)
-	}
+	viper.SetConfigFile(".env")
+	viper.AutomaticEnv()
 
-	rateMax := 100
-	rateWindow := time.Minute
-	bodyLimit := 2
-	shutdownTimeout := 5
-	dbMaxOpen := 50
-	dbMaxIdle := 10
-	dbMaxLifetime := 30 * time.Minute
+	// Defaults
+	viper.SetDefault("APP_NAME", "http-server")
+	viper.SetDefault("PORT", "8080")
+	viper.SetDefault("BODY_LIMIT_MB", 2)
+	viper.SetDefault("APP_VERSION", "0.1.0")
+	viper.SetDefault("ENV", "development")
+	viper.SetDefault("SERVER_HEADER", "ZeroDayZ7")
+	viper.SetDefault("PREFORK", false)
+	viper.SetDefault("CASE_SENSITIVE", true)
+	viper.SetDefault("STRICT_ROUTING", true)
+	viper.SetDefault("IDLE_TIMEOUT_SEC", 30)
+	viper.SetDefault("READ_TIMEOUT_SEC", 15)
+	viper.SetDefault("WRITE_TIMEOUT_SEC", 15)
+	viper.SetDefault("DB_MAX_OPEN_CONNS", 50)
+	viper.SetDefault("DB_MAX_IDLE_CONNS", 10)
+	viper.SetDefault("DB_CONN_MAX_LIFETIME_MIN", 30)
+	viper.SetDefault("RATE_LIMIT_MAX", 100)
+	viper.SetDefault("RATE_LIMIT_WINDOW_SEC", 60)
+	viper.SetDefault("CORS_ALLOW_ORIGINS", "*")
+	viper.SetDefault("SHUTDOWN_TIMEOUT_SEC", 5)
 
-	if val := os.Getenv("BODY_LIMIT_MB"); val != "" {
-		if l, err := strconv.Atoi(val); err == nil {
-			bodyLimit = l
-		} else {
-			log.Warn("Invalid BODY_LIMIT_MB, using default 2MB")
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			log.Error("Error loading .env", zap.Error(err))
+			return Config{}, fmt.Errorf("error loading .env: %v", err)
 		}
 	}
 
-	if val := os.Getenv("SHUTDOWN_TIMEOUT"); val != "" {
-		if t, err := strconv.Atoi(val); err == nil {
-			shutdownTimeout = t
-		} else {
-			log.Warn("Invalid SHUTDOWN_TIMEOUT, using default 5s")
-		}
+	cfg := Config{
+		Server: ServerConfig{
+			AppName:       viper.GetString("APP_NAME"),
+			Port:          viper.GetString("PORT"),
+			BodyLimitMB:   viper.GetInt("BODY_LIMIT_MB"),
+			AppVersion:    viper.GetString("APP_VERSION"),
+			Env:           viper.GetString("ENV"),
+			ServerHeader:  viper.GetString("SERVER_HEADER"),
+			Prefork:       viper.GetBool("PREFORK"),
+			CaseSensitive: viper.GetBool("CASE_SENSITIVE"),
+			StrictRouting: viper.GetBool("STRICT_ROUTING"),
+			IdleTimeout:   time.Duration(viper.GetInt("IDLE_TIMEOUT_SEC")) * time.Second,
+			ReadTimeout:   time.Duration(viper.GetInt("READ_TIMEOUT_SEC")) * time.Second,
+			WriteTimeout:  time.Duration(viper.GetInt("WRITE_TIMEOUT_SEC")) * time.Second,
+		},
+		Database: DBConfig{
+			DSN:             viper.GetString("MYSQL_DSN"),
+			MaxOpenConns:    viper.GetInt("DB_MAX_OPEN_CONNS"),
+			MaxIdleConns:    viper.GetInt("DB_MAX_IDLE_CONNS"),
+			ConnMaxLifetime: time.Duration(viper.GetInt("DB_CONN_MAX_LIFETIME_MIN")) * time.Minute,
+		},
+		RateLimit: RateLimitConfig{
+			Max:    viper.GetInt("RATE_LIMIT_MAX"),
+			Window: time.Duration(viper.GetInt("RATE_LIMIT_WINDOW_SEC")) * time.Second,
+		},
+		CORSAllow: viper.GetString("CORS_ALLOW_ORIGINS"),
+		Shutdown:  time.Duration(viper.GetInt("SHUTDOWN_TIMEOUT_SEC")) * time.Second,
 	}
 
-	if val := os.Getenv("DB_MAX_OPEN_CONNS"); val != "" {
-		if v, err := strconv.Atoi(val); err == nil {
-			dbMaxOpen = v
-		} else {
-			log.Warn("Invalid DB_MAX_OPEN_CONNS, using default 50")
-		}
-	}
+	log.Info("Configuration loaded")
 
-	if val := os.Getenv("DB_MAX_IDLE_CONNS"); val != "" {
-		if v, err := strconv.Atoi(val); err == nil {
-			dbMaxIdle = v
-		} else {
-			log.Warn("Invalid DB_MAX_IDLE_CONNS, using default 10")
-		}
-	}
-
-	if val := os.Getenv("DB_CONN_MAX_LIFETIME_MIN"); val != "" {
-		if v, err := strconv.Atoi(val); err == nil {
-			dbMaxLifetime = time.Duration(v) * time.Minute
-		} else {
-			log.Warn("Invalid DB_CONN_MAX_LIFETIME_MIN, using default 30min")
-		}
-	}
-
-	config := Config{
-		AppVersion:         os.Getenv("APP_VERSION"),
-		MySQLDSN:           os.Getenv("MYSQL_DSN"),
-		Port:               os.Getenv("PORT"),
-		Env:                os.Getenv("ENV"),
-		CORSAllowOrigins:   os.Getenv("CORS_ALLOW_ORIGINS"),
-		RateLimitMax:       rateMax,
-		RateLimitWindow:    rateWindow,
-		BodyLimitMB:        bodyLimit,
-		ShutdownTimeoutSec: shutdownTimeout,
-		DBMaxOpenConns:     dbMaxOpen,
-		DBMaxIdleConns:     dbMaxIdle,
-		DBConnMaxLifetime:  dbMaxLifetime,
-	}
-
-	if config.AppVersion == "" {
-		config.AppVersion = "0.1.0"
-	}
-	if config.MySQLDSN == "" {
-		log.Error("MYSQL_DSN environment variable is required")
-		return Config{}, fmt.Errorf("MYSQL_DSN environment variable is required")
-	}
-	if config.Port == "" {
-		log.Error("PORT environment variable is required")
-		return Config{}, fmt.Errorf("PORT environment variable is required")
-	}
-	if config.Env == "" {
-		log.Warn("ENV not set, defaulting to development")
-		config.Env = "development"
-	}
-	if config.CORSAllowOrigins == "" {
-		config.CORSAllowOrigins = "*"
-	}
-
-	log.Info("Configuration loaded",
-		zap.String("env", config.Env),
-		zap.String("port", config.Port),
-		zap.Int("bodyLimitMB", config.BodyLimitMB),
-		zap.Int("shutdownTimeoutSec", config.ShutdownTimeoutSec),
-		zap.Int("dbMaxOpenConns", config.DBMaxOpenConns),
-		zap.Int("dbMaxIdleConns", config.DBMaxIdleConns),
-		zap.Duration("dbConnMaxLifetime", config.DBConnMaxLifetime),
-	)
-
-	return config, nil
+	return cfg, nil
 }

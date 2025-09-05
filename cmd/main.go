@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"time"
 
 	"github.com/zerodayz7/http-server/config"
 	"github.com/zerodayz7/http-server/internal/handler"
@@ -23,6 +22,7 @@ import (
 )
 
 func main() {
+	// Inicjalizacja loggera
 	env := os.Getenv("ENV")
 	if env == "" {
 		env = "development"
@@ -35,18 +35,21 @@ func main() {
 	defer logger.GetLogger().Sync()
 	log := logger.GetLogger()
 
+	// Load config
 	cfg, err := config.LoadConfig(log)
 	if err != nil {
-		log.Error("Config load failed", zap.Error(err))
+		log.Fatal("Config load failed", zap.Error(err))
 		return
 	}
-	log.Info("Starting server", zap.String("version", cfg.AppVersion))
 
+	log.Info("Starting server", zap.String("version", cfg.Server.AppVersion))
+
+	// DB setup
 	dbCfg := db.DBConfig{
-		DSN:             cfg.MySQLDSN,
-		MaxOpenConns:    cfg.DBMaxOpenConns,
-		MaxIdleConns:    cfg.DBMaxIdleConns,
-		ConnMaxLifetime: cfg.DBConnMaxLifetime,
+		DSN:             cfg.Database.DSN,
+		MaxOpenConns:    cfg.Database.MaxOpenConns,
+		MaxIdleConns:    cfg.Database.MaxIdleConns,
+		ConnMaxLifetime: cfg.Database.ConnMaxLifetime,
 	}
 
 	conn, err := db.NewDB(dbCfg)
@@ -57,25 +60,30 @@ func main() {
 	sqlDB, _ := conn.DB()
 	defer sqlDB.Close()
 
+	// Repo, service, handler
 	repo := mysqlrepo.NewUserRepository(conn)
 	svc := service.NewUserService(repo)
 	h := handler.NewUserHandler(svc)
 
+	// Fiber app
 	app := server.New(cfg)
 
+	// Middleware
 	app.Use(middleware.RequestIDMiddleware())
 	app.Use(fiberlogger.New())
 	app.Use(recover.New())
-	app.Use(config.BodyLimitMiddleware())
 	app.Use(helmet.New(config.HelmetConfig()))
-	app.Use(cors.New(config.CorsConfig(cfg.CORSAllowOrigins)))
-	app.Use(limiter.New(config.LimiterConfig(cfg.RateLimitMax, cfg.RateLimitWindow)))
+	app.Use(cors.New(config.CorsConfig(cfg.CORSAllow)))
+	app.Use(limiter.New(config.LimiterConfig(cfg.RateLimit.Max, cfg.RateLimit.Window)))
 
-	server.SetupGracefulShutdown(app, sqlDB, time.Duration(cfg.ShutdownTimeoutSec)*time.Second)
+	// Graceful shutdown
+	server.SetupGracefulShutdown(app, sqlDB, cfg.Shutdown)
+
+	// Routes
 	router.SetupRoutes(app, h)
 
-	log.Info("Listening", zap.String("port", cfg.Port))
-	if err := app.Listen(":" + cfg.Port); err != nil {
-		log.Error("Fiber listen failed", zap.Error(err))
+	log.Info("Listening", zap.String("port", cfg.Server.Port))
+	if err := app.Listen(":" + cfg.Server.Port); err != nil {
+		log.Fatal("Fiber listen failed", zap.Error(err))
 	}
 }

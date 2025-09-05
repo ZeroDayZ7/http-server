@@ -2,24 +2,19 @@ package middleware
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/zerodayz7/http-server/internal/errors"
 )
 
 func ValidateQuery[T any]() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		query := new(T)
 		if err := c.QueryParser(query); err != nil {
-			return errors.SendAppError(c, &errors.AppError{
-				Code: "INVALID_QUERY",
-				Type: errors.BadRequest,
-			})
+			return fiber.NewError(fiber.StatusBadRequest, "INVALID_QUERY")
 		}
 
-		if errs := Validate(query); len(errs) > 0 {
-			return errors.SendAppError(c, &errors.AppError{
-				Code: "VALIDATION_FAILED",
-				Type: errors.Validation,
-				Meta: errs,
+		if errs := ValidateStruct(query); len(errs) > 0 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"code":   "VALIDATION_FAILED",
+				"errors": errs,
 			})
 		}
 
