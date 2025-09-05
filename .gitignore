@@ -1,0 +1,12 @@
+# Ignore actual environment files
+.env
+*.env
+
+# Keep the example file
+!.env.example
+
+# Ignore binary outputs
+bin/*
+!bin/.env.example
+# Ignore logs
+logs/
