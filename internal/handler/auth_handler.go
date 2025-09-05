@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/zerodayz7/http-server/internal/errors"
 	"github.com/zerodayz7/http-server/internal/service"
 	"github.com/zerodayz7/http-server/internal/validator"
 
@@ -19,7 +20,7 @@ func (h *UserHandler) CheckEmail(c *fiber.Ctx) error {
 	body := c.Locals("validatedBody").(validator.CheckEmailRequest)
 	exists, err := h.service.IsEmailExists(body.Email)
 	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "Internal server error")
+		return errors.SendAppError(c, errors.ErrInternal)
 	}
 	return c.JSON(fiber.Map{"exists": exists})
 }
@@ -27,21 +28,12 @@ func (h *UserHandler) CheckEmail(c *fiber.Ctx) error {
 func (h *UserHandler) Register(c *fiber.Ctx) error {
 	body := c.Locals("validatedBody").(validator.RegisterRequest)
 
-	emailExists, usernameExists, err := h.service.IsEmailOrUsernameExists(body.Email, body.Username)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "Internal server error")
-	}
-
-	if emailExists {
-		return fiber.NewError(fiber.StatusBadRequest, "Email already exists")
-	}
-	if usernameExists {
-		return fiber.NewError(fiber.StatusBadRequest, "Username already exists")
-	}
-
 	user, err := h.service.Register(body.Username, body.Email, body.Password)
 	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "Internal server error")
+		if appErr, ok := err.(*errors.AppError); ok {
+			return errors.SendAppError(c, appErr)
+		}
+		return errors.SendAppError(c, errors.ErrInternal)
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{

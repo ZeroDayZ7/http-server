@@ -44,6 +44,10 @@ func (s *UserService) IsUsernameExists(username string) (bool, error) {
 	return exists, nil
 }
 
+func (s *UserService) IsEmailOrUsernameExists(email, username string) (bool, bool, error) {
+	return s.repo.EmailOrUsernameExists(email, username)
+}
+
 func (s *UserService) CheckPassword(email, password string) (bool, bool, error) {
 	log := logger.GetLogger()
 	log.Debug("CheckPassword", zap.String("email", email))
@@ -95,10 +99,6 @@ func (s *UserService) Register(username, email, rawPassword string) (*model.User
 		return nil, errors.ErrUsernameExists
 	}
 
-	if len(rawPassword) < 8 {
-		return nil, errors.ErrPasswordTooShort
-	}
-
 	hash, err := security.HashPassword(rawPassword)
 	if err != nil {
 		return nil, fmt.Errorf("hashing password: %w", err)
@@ -115,8 +115,4 @@ func (s *UserService) Register(username, email, rawPassword string) (*model.User
 	}
 
 	return u, nil
-}
-
-func (s *UserService) IsEmailOrUsernameExists(email, username string) (bool, bool, error) {
-	return s.repo.EmailOrUsernameExists(email, username)
 }

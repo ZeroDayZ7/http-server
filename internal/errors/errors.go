@@ -37,4 +37,5 @@ var (
 	ErrEmailExists      = &AppError{Code: "EMAIL_EXISTS", Type: Validation, Message: "Email already registered"}
 	ErrUsernameExists   = &AppError{Code: "USERNAME_EXISTS", Type: Validation, Message: "Username already exist"}
 	ErrPasswordTooShort = &AppError{Code: "PASSWORD_TOO_SHORT", Type: Validation, Message: "Password must be at least 8 characters"}
+	ErrInternal         = &AppError{Code: "SERVER_ERROR", Type: Internal, Message: "Internal server error"}
 )

@@ -35,8 +35,12 @@ func SendAppError(c *fiber.Ctx, err *AppError) error {
 		log.Warn("AppError occurred", fields...)
 	}
 
-	return c.Status(status).JSON(fiber.Map{
+	response := fiber.Map{
 		"code": err.Code,
-		"meta": err.Meta,
-	})
+	}
+	if len(err.Meta) > 0 {
+		response["meta"] = err.Meta
+	}
+
+	return c.Status(status).JSON(response)
 }
