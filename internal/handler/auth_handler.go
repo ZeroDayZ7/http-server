@@ -31,9 +31,10 @@ func (h *UserHandler) Register(c *fiber.Ctx) error {
 	user, err := h.service.Register(body.Username, body.Email, body.Password)
 	if err != nil {
 		if appErr, ok := err.(*errors.AppError); ok {
-			return errors.SendAppError(c, appErr)
+			errors.AttachRequestMeta(c, appErr, "requestID")
+			return appErr
 		}
-		return errors.SendAppError(c, errors.ErrInternal)
+		return errors.ErrInternal
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{

@@ -8,5 +8,5 @@ type UserRepository interface {
 	GetByEmail(string) (*model.User, error)
 	EmailExists(string) (bool, error)
 	UsernameExists(string) (bool, error)
-	EmailOrUsernameExists(email, username string) (emailExists bool, usernameExists bool, err error)
+	EmailOrUsernameExists(email, username string) (bool, bool, error)
 }

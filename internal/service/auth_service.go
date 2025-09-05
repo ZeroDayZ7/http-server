@@ -45,7 +45,13 @@ func (s *UserService) IsUsernameExists(username string) (bool, error) {
 }
 
 func (s *UserService) IsEmailOrUsernameExists(email, username string) (bool, bool, error) {
-	return s.repo.EmailOrUsernameExists(email, username)
+	existsEmail, existsUsername, err := s.repo.EmailOrUsernameExists(email, username)
+	if err != nil {
+		log := logger.GetLogger()
+		log.Error("repo.EmailOrUsernameExists failed", zap.Error(err))
+		return false, false, err
+	}
+	return existsEmail, existsUsername, nil
 }
 
 func (s *UserService) CheckPassword(email, password string) (bool, bool, error) {
