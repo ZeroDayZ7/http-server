@@ -24,13 +24,32 @@ func (h *UserHandler) GetCSRFToken(c *fiber.Ctx) error {
 	})
 }
 
-func (h *UserHandler) CheckEmail(c *fiber.Ctx) error {
-	body := c.Locals("validatedBody").(validator.CheckEmailRequest)
-	exists, err := h.service.IsEmailExists(body.Email)
+func (h *UserHandler) Login(c *fiber.Ctx) error {
+	body := c.Locals("validatedBody").(validator.LoginRequest)
+
+	user, err := h.service.GetUserByEmail(body.Email)
 	if err != nil {
-		return errors.SendAppError(c, errors.ErrInternal)
+		return errors.SendAppError(c, errors.ErrInvalidCredentials)
 	}
-	return c.JSON(fiber.Map{"exists": exists})
+
+	valid, err := h.service.VerifyPassword(user, body.Password)
+	if err != nil || !valid {
+		return errors.SendAppError(c, errors.ErrInvalidCredentials)
+	}
+
+	if user.TwoFactorEnabled {
+		return c.JSON(fiber.Map{"2fa_required": true})
+	}
+
+	// token, err := h.service.GenerateToken(user)
+	// if err != nil {
+	// 	return errors.SendAppError(c, errors.ErrInternal)
+	// }
+
+	return c.JSON(fiber.Map{
+		"2fa_required": false,
+		// "token":        token,
+	})
 }
 
 func (h *UserHandler) Register(c *fiber.Ctx) error {

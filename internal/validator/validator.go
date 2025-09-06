@@ -10,8 +10,9 @@ type RegisterRequest struct {
 	Password string `json:"password" validate:"required,passwd"`
 }
 
-type CheckEmailRequest struct {
-	Email string `json:"email" validate:"required,email"`
+type LoginRequest struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,passwd"`
 }
 
 func ValidateStruct(s any) map[string]string {

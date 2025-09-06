@@ -34,12 +34,14 @@ func (e *AppError) Error() string {
 }
 
 var (
-	ErrEmailExists      = &AppError{Code: "EMAIL_EXISTS", Type: Validation, Message: "Email already registered"}
-	ErrUsernameExists   = &AppError{Code: "USERNAME_EXISTS", Type: Validation, Message: "Username already exist"}
-	ErrPasswordTooShort = &AppError{Code: "PASSWORD_TOO_SHORT", Type: Validation, Message: "Password must be at least 8 characters"}
-	ErrInternal         = &AppError{Code: "SERVER_ERROR", Type: Internal, Message: "Internal server error"}
-	ErrInvalidJSON      = &AppError{Code: "INVALID_JSON", Type: BadRequest, Message: "Invalid JSON in request body", Meta: map[string]any{"field": "body"}}
-	ErrValidationFailed = &AppError{Code: "VALIDATION_FAILED", Type: Validation, Message: "Request validation failed"}
-	ErrCSRFInvalid      = &AppError{Code: "CSRF_INVALID", Type: Unauthorized, Message: "CSRF token invalid or missing"}
-	ErrTooManyRequests  = &AppError{Code: "TOO_MANY_REQUESTS", Type: BadRequest, Message: "Too many requests"}
+	ErrEmailExists        = &AppError{Code: "EMAIL_EXISTS", Type: Validation, Message: "Email already registered"}
+	ErrUsernameExists     = &AppError{Code: "USERNAME_EXISTS", Type: Validation, Message: "Username already exist"}
+	ErrPasswordTooShort   = &AppError{Code: "PASSWORD_TOO_SHORT", Type: Validation, Message: "Password must be at least 8 characters"}
+	ErrInternal           = &AppError{Code: "SERVER_ERROR", Type: Internal, Message: "Internal server error"}
+	ErrInvalidJSON        = &AppError{Code: "INVALID_JSON", Type: BadRequest, Message: "Invalid JSON in request body"}
+	ErrValidationFailed   = &AppError{Code: "VALIDATION_FAILED", Type: Validation, Message: "Request validation failed"}
+	ErrCSRFInvalid        = &AppError{Code: "CSRF_INVALID", Type: Unauthorized, Message: "CSRF token invalid or missing"}
+	ErrTooManyRequests    = &AppError{Code: "TOO_MANY_REQUESTS", Type: BadRequest, Message: "Too many requests"}
+	ErrInvalidCredentials = &AppError{Code: "INVALID_CREDENTIALS", Type: Unauthorized, Message: "Incorrect login data"}
+	ErrUserNotFound       = &AppError{Code: "USER_NOT_FOUND", Type: Unauthorized, Message: "User not found"}
 )

@@ -54,22 +54,23 @@ func (s *UserService) IsEmailOrUsernameExists(email, username string) (bool, boo
 	return existsEmail, existsUsername, nil
 }
 
-func (s *UserService) CheckPassword(email, password string) (bool, bool, error) {
-	log := logger.GetLogger()
-	log.Debug("CheckPassword", zap.String("email", email))
-
+func (s *UserService) GetUserByEmail(email string) (*model.User, error) {
 	u, err := s.repo.GetByEmail(email)
 	if err != nil {
-		log.Error("GetByEmail failed", zap.Error(err), zap.String("email", email))
-		return false, false, err
+		return nil, err
 	}
+	if u == nil {
+		return nil, errors.ErrUserNotFound
+	}
+	return u, nil
+}
 
-	valid, err := security.VerifyPassword(password, u.Password)
+func (s *UserService) VerifyPassword(user *model.User, password string) (bool, error) {
+	valid, err := security.VerifyPassword(password, user.Password)
 	if err != nil {
-		log.Error("VerifyPassword failed", zap.Error(err))
-		return false, false, err
+		return false, err
 	}
-	return valid, u.TwoFactorEnabled, nil
+	return valid, nil
 }
 
 func (s *UserService) Verify2FACode(email, code string) (bool, error) {

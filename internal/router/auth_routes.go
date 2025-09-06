@@ -15,9 +15,9 @@ func setupAuthRoutes(app *fiber.App, h *handler.UserHandler) {
 
 	auth.Get("/csrf-token", h.GetCSRFToken)
 
-	auth.Post("/check-email",
-		middleware.ValidateBody[validator.CheckEmailRequest](),
-		h.CheckEmail,
+	auth.Post("/login",
+		middleware.ValidateBody[validator.LoginRequest](),
+		h.Login,
 	)
 
 	auth.Post("/register",
