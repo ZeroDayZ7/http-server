@@ -14,12 +14,10 @@ import (
 	"github.com/zerodayz7/http-server/internal/shared/db"
 	"github.com/zerodayz7/http-server/internal/shared/logger"
 
-	"go.uber.org/zap"
-
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
-	fiberlogger "github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -71,9 +69,9 @@ func main() {
 
 	// Middleware
 	app.Use(requestid.New())
-	// app.Use(config.FiberLoggerMiddleware())
-	app.Use(fiberlogger.New())
 	app.Use(recover.New())
+	app.Use(config.FiberLoggerMiddleware())
+
 	app.Use(helmet.New(config.HelmetConfig()))
 	app.Use(cors.New(config.CorsConfig(cfg.CORSAllow)))
 	app.Use(config.NewLimiter("global"))
