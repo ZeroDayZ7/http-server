@@ -3,15 +3,17 @@ package main
 import (
 	"os"
 
+	"github.com/gofiber/fiber/v2/middleware/compress"
+	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/zerodayz7/http-server/config"
 	"github.com/zerodayz7/http-server/internal/handler"
-	"github.com/zerodayz7/http-server/internal/middleware"
 	mysqlrepo "github.com/zerodayz7/http-server/internal/repository/mysql"
 	"github.com/zerodayz7/http-server/internal/router"
 	"github.com/zerodayz7/http-server/internal/server"
 	"github.com/zerodayz7/http-server/internal/service"
 	"github.com/zerodayz7/http-server/internal/shared/db"
 	"github.com/zerodayz7/http-server/internal/shared/logger"
+
 	"go.uber.org/zap"
 
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -68,12 +70,14 @@ func main() {
 	app := server.New(cfg)
 
 	// Middleware
-	app.Use(middleware.RequestIDMiddleware())
+	app.Use(requestid.New())
+	// app.Use(config.FiberLoggerMiddleware())
 	app.Use(fiberlogger.New())
 	app.Use(recover.New())
 	app.Use(helmet.New(config.HelmetConfig()))
 	app.Use(cors.New(config.CorsConfig(cfg.CORSAllow)))
 	app.Use(config.NewLimiter("global"))
+	app.Use(compress.New(config.CompressConfig()))
 
 	// Graceful shutdown
 	server.SetupGracefulShutdown(app, sqlDB, cfg.Shutdown)

@@ -46,7 +46,7 @@ func InitLogger(env string) (*Logger, error) {
 			zapcore.DebugLevel,
 		)
 		fileCore := zapcore.NewCore(
-			zapcore.NewJSONEncoder(cfg.EncoderConfig),
+			zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
 			zapcore.AddSync(logFile),
 			zapcore.InfoLevel,
 		)
@@ -67,21 +67,25 @@ func GetLogger() *Logger {
 }
 
 func (l *Logger) Info(msg string, fields ...zap.Field) {
-	l.Logger.Info(msg, fields...)
+	l.Logger.WithOptions(zap.AddCallerSkip(1)).Info(msg, fields...)
 }
-func (l *Logger) Error(msg string, fields ...zap.Field) {
-	l.Logger.Error(msg, fields...)
-}
+
 func (l *Logger) Debug(msg string, fields ...zap.Field) {
-	l.Logger.Debug(msg, fields...)
+	l.Logger.WithOptions(zap.AddCallerSkip(1)).Debug(msg, fields...)
 }
+
 func (l *Logger) Warn(msg string, fields ...zap.Field) {
-	l.Logger.Warn(msg, fields...)
+	l.Logger.WithOptions(zap.AddCallerSkip(1)).Warn(msg, fields...)
+}
+
+func (l *Logger) Error(msg string, fields ...zap.Field) {
+	l.Logger.WithOptions(zap.AddCallerSkip(1)).Error(msg, fields...)
 }
 
 func (l *Logger) InfoObj(msg string, obj any) {
-	l.Logger.Info(msg, zap.Any("data", obj))
+	l.Logger.WithOptions(zap.AddCallerSkip(1)).Info(msg, zap.Any("data", obj))
 }
+
 func (l *Logger) DebugObj(msg string, obj any) {
-	l.Logger.Debug(msg, zap.Any("data", obj))
+	l.Logger.WithOptions(zap.AddCallerSkip(1)).Debug(msg, zap.Any("data", obj))
 }
