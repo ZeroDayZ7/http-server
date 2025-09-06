@@ -1,4 +1,3 @@
-// config/fiber_logger.go
 package config
 
 import (
