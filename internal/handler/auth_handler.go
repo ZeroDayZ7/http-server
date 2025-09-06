@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/zerodayz7/http-server/internal/errors"
+	"github.com/zerodayz7/http-server/internal/middleware"
 	"github.com/zerodayz7/http-server/internal/service"
 	"github.com/zerodayz7/http-server/internal/validator"
 
@@ -14,6 +15,13 @@ type UserHandler struct {
 
 func NewUserHandler(service *service.UserService) *UserHandler {
 	return &UserHandler{service: service}
+}
+
+func (h *UserHandler) GetCSRFToken(c *fiber.Ctx) error {
+	token := middleware.GenerateCSRFToken(c)
+	return c.JSON(fiber.Map{
+		"csrf_token": token,
+	})
 }
 
 func (h *UserHandler) CheckEmail(c *fiber.Ctx) error {

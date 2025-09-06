@@ -91,22 +91,26 @@ func (s *UserService) Verify2FACode(email, code string) (bool, error) {
 
 func (s *UserService) Register(username, email, rawPassword string) (*model.User, error) {
 	log := logger.GetLogger()
-	log.Debug("Register", zap.String("email", email), zap.String("username", username))
+	log.Debug("Register attempt", zap.String("email", email), zap.String("username", username))
 
 	emailExists, usernameExists, err := s.repo.EmailOrUsernameExists(email, username)
 	if err != nil {
+		log.Error("EmailOrUsernameExists failed", zap.Error(err))
 		return nil, fmt.Errorf("checking email/username existence: %w", err)
 	}
 
 	if emailExists {
+		log.Warn("Email already registered", zap.String("email", email))
 		return nil, errors.ErrEmailExists
 	}
 	if usernameExists {
+		log.Warn("Username already exists", zap.String("username", username))
 		return nil, errors.ErrUsernameExists
 	}
 
 	hash, err := security.HashPassword(rawPassword)
 	if err != nil {
+		log.Error("Password hashing failed", zap.Error(err))
 		return nil, fmt.Errorf("hashing password: %w", err)
 	}
 
@@ -117,8 +121,10 @@ func (s *UserService) Register(username, email, rawPassword string) (*model.User
 	}
 
 	if err := s.repo.CreateUser(u); err != nil {
+		log.Error("CreateUser failed", zap.Error(err))
 		return nil, fmt.Errorf("creating user: %w", err)
 	}
 
+	log.Info("User registered successfully", zap.String("email", email), zap.String("username", username))
 	return u, nil
 }

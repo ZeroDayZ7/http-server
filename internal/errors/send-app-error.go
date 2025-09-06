@@ -36,7 +36,8 @@ func SendAppError(c *fiber.Ctx, err *AppError) error {
 	}
 
 	response := fiber.Map{
-		"code": err.Code,
+		"code":    err.Code,
+		"message": err.Message,
 	}
 	if len(err.Meta) > 0 {
 		response["meta"] = err.Meta

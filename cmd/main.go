@@ -16,7 +16,6 @@ import (
 
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
-	"github.com/gofiber/fiber/v2/middleware/limiter"
 	fiberlogger "github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 )
@@ -74,7 +73,7 @@ func main() {
 	app.Use(recover.New())
 	app.Use(helmet.New(config.HelmetConfig()))
 	app.Use(cors.New(config.CorsConfig(cfg.CORSAllow)))
-	app.Use(limiter.New(config.LimiterConfig(cfg.RateLimit.Max, cfg.RateLimit.Window)))
+	app.Use(config.NewLimiter("global"))
 
 	// Graceful shutdown
 	server.SetupGracefulShutdown(app, sqlDB, cfg.Shutdown)

@@ -14,7 +14,6 @@ func ErrorHandler() fiber.ErrorHandler {
 	return func(c *fiber.Ctx, err error) error {
 		var appErr *apperrors.AppError
 		if stdErrors.As(err, &appErr) {
-			// Ustal status
 			status := fiber.StatusBadRequest
 			if appErr.Type == apperrors.Internal {
 				status = fiber.StatusInternalServerError
