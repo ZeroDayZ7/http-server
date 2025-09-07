@@ -46,4 +46,5 @@ var (
 	ErrTooManyRequests    = &AppError{Code: "TOO_MANY_REQUESTS", Type: BadRequest, Message: "Too many requests"}
 	ErrInvalidCredentials = &AppError{Code: "INVALID_CREDENTIALS", Type: Unauthorized, Message: "Incorrect login data"}
 	ErrUserNotFound       = &AppError{Code: "USER_NOT_FOUND", Type: Unauthorized, Message: "User not found"}
+	ErrUnauthorized       = &AppError{Code: "UNAUTHORIZED", Type: Unauthorized, Message: "Unauthorized access"}
 )

@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/zerodayz7/http-server/config"
 	"github.com/zerodayz7/http-server/internal/handler"
+	"github.com/zerodayz7/http-server/internal/middleware"
 	mysqlrepo "github.com/zerodayz7/http-server/internal/repository/mysql"
 	"github.com/zerodayz7/http-server/internal/router"
 	"github.com/zerodayz7/http-server/internal/server"
@@ -82,12 +83,13 @@ func main() {
 	app.Use(cors.New(config.CorsConfig(cfg.CORSAllow)))
 	app.Use(config.NewLimiter("global"))
 	app.Use(compress.New(config.CompressConfig()))
+	app.Use(middleware.SessionMiddleware(sessionSvc))
 
 	// Graceful shutdown
 	server.SetupGracefulShutdown(app, sqlDB, cfg.Shutdown)
 
 	// Routes
-	router.SetupRoutes(app, authHandler, userHandler)
+	router.SetupRoutes(app, authHandler, userHandler, sessionSvc)
 
 	log.Info("Listening", zap.String("port", cfg.Server.Port))
 	if err := app.Listen(":" + cfg.Server.Port); err != nil {

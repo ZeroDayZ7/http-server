@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/zerodayz7/http-server/internal/errors"
 	"github.com/zerodayz7/http-server/internal/middleware"
+	"github.com/zerodayz7/http-server/internal/model"
 	"github.com/zerodayz7/http-server/internal/service"
 	"github.com/zerodayz7/http-server/internal/shared"
 	"github.com/zerodayz7/http-server/internal/validator"
@@ -12,17 +13,20 @@ import (
 type AuthHandler struct {
 	authService    *service.AuthService
 	sessionService *service.SessionService
+	csrfMiddleware *middleware.CSRFMiddleware
 }
 
 func NewAuthHandler(authService *service.AuthService, sessionService *service.SessionService) *AuthHandler {
+	csrf := middleware.NewCSRFMiddleware(sessionService)
 	return &AuthHandler{
 		authService:    authService,
 		sessionService: sessionService,
+		csrfMiddleware: csrf,
 	}
 }
 
 func (h *AuthHandler) GetCSRFToken(c *fiber.Ctx) error {
-	token := middleware.GenerateCSRFToken(c)
+	token := h.csrfMiddleware.GenerateCSRFToken(c)
 	return c.JSON(fiber.Map{"csrf_token": token})
 }
 
@@ -43,16 +47,24 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"2fa_required": true})
 	}
 
-	// --- Tworzymy sesję ---
-	session, err := h.sessionService.CreateSession(user.ID, nil)
-	if err != nil {
+	// Pobierz istniejącą sesję (anonimową)
+	session := c.Locals("session").(*model.Session)
+
+	// Przypisz userID do sesji
+	session.UserID = user.ID
+	if err := h.sessionService.UpdateSessionData(session.SessionID, nil); err != nil {
 		return errors.SendAppError(c, errors.ErrInternal)
 	}
-	// --- Ustawiamy ciasteczko sesji przez helper ---
+
+	// Ustaw ciasteczko sesji
 	shared.SetSessionCookie(c, session.SessionID)
+
+	// Generuj CSRF token
+	csrfToken := h.csrfMiddleware.GenerateCSRFToken(c)
 
 	return c.JSON(fiber.Map{
 		"2fa_required": false,
+		"csrf_token":   csrfToken,
 	})
 }
 
