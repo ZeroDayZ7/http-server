@@ -34,6 +34,8 @@ func (e *AppError) Error() string {
 }
 
 var (
+	ErrInvalid2FACode     = &AppError{Code: "INVALID_2FA", Type: Validation, Message: "Invalid 2FA code"}
+	ErrInvalidRequest     = &AppError{Code: "INVALID_REQUEST", Type: Validation, Message: "Invalid request data"}
 	ErrEmailExists        = &AppError{Code: "EMAIL_EXISTS", Type: Validation, Message: "Email already registered"}
 	ErrUsernameExists     = &AppError{Code: "USERNAME_EXISTS", Type: Validation, Message: "Username already exist"}
 	ErrPasswordTooShort   = &AppError{Code: "PASSWORD_TOO_SHORT", Type: Validation, Message: "Password must be at least 8 characters"}

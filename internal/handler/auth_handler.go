@@ -69,3 +69,31 @@ func (h *UserHandler) Register(c *fiber.Ctx) error {
 		"user":    user,
 	})
 }
+
+// func (h *UserHandler) Verify2FA(c *fiber.Ctx) error {
+// 	type Req struct {
+// 		Email string `json:"user_id"`
+// 		Code   string `json:"code"`
+// 	}
+// 	var body Req
+// 	if err := c.BodyParser(&body); err != nil {
+// 		return errors.SendAppError(c, errors.ErrInvalidRequest)
+// 	}
+
+// 	ok, err := service.Verify2FACode(body.Email, body.Code)
+// 	if err != nil {
+// 		return errors.SendAppError(c, errors.ErrInvalid2FACode)
+// 	}
+
+// 	if !ok {
+// 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+// 			"success": false,
+// 			"message": "Invalid 2FA code",
+// 		})
+// 	}
+
+// 	return c.JSON(fiber.Map{
+// 		"success": true,
+// 		"message": "2FA verified successfully",
+// 	})
+// }

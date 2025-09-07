@@ -20,6 +20,10 @@ func setupAuthRoutes(app *fiber.App, h *handler.UserHandler) {
 		h.Login,
 	)
 
+	// auth.Post("/2fa-verify",
+	// 	middleware.ValidateBody[validator.TwoFARequest](),
+	// 	handler.Verify2FA)
+
 	auth.Post("/register",
 		middleware.ValidateBody[validator.RegisterRequest](),
 		h.Register,

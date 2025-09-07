@@ -15,6 +15,11 @@ type LoginRequest struct {
 	Password string `json:"password" validate:"required,passwd"`
 }
 
+type TwoFARequest struct {
+	UserID string `json:"user_id" validate:"required,uuid"`
+	Code   string `json:"code" validate:"required,len=6,numeric"`
+}
+
 func ValidateStruct(s any) map[string]string {
 	return middleware.ValidateStruct(s)
 }

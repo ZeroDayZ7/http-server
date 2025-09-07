@@ -129,3 +129,26 @@ func (s *UserService) Register(username, email, rawPassword string) (*model.User
 	log.Info("User registered successfully", zap.String("email", email), zap.String("username", username))
 	return u, nil
 }
+
+// func (s *UserService) VerifyTwoFactorCode(userID, code string) (bool, error) {
+// 	user, err := mysql.GetUserByID(userID)
+// 	if err != nil {
+// 		return false, err
+// 	}
+
+// 	if !user.TwoFactorEnabled {
+// 		return false, errors.New("2FA not enabled for this user")
+// 	}
+
+// 	// Weryfikacja TOTP (np. Google Authenticator)
+// 	valid := totp.Validate(code, user.TwoFactorSecret)
+// 	if !valid {
+// 		return false, nil
+// 	}
+
+// 	// Tutaj możesz np. zarejestrować timestamp ostatniego logowania 2FA
+// 	user.Last2FALogin = time.Now()
+// 	mysql.UpdateUser(user)
+
+// 	return true, nil
+// }
