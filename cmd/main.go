@@ -60,9 +60,15 @@ func main() {
 	defer sqlDB.Close()
 
 	// Repo, service, handler
-	repo := mysqlrepo.NewUserRepository(conn)
-	svc := service.NewUserService(repo)
-	h := handler.NewUserHandler(svc)
+	userRepo := mysqlrepo.NewUserRepository(conn)
+	sessionRepo := mysqlrepo.NewSessionRepository(conn)
+
+	authSvc := service.NewAuthService(userRepo)
+	userSvc := service.NewUserService(userRepo)
+	sessionSvc := service.NewSessionService(sessionRepo, cfg.SessionTTL)
+
+	authHandler := handler.NewAuthHandler(authSvc, sessionSvc)
+	userHandler := handler.NewUserHandler(userSvc, sessionSvc)
 
 	// Fiber app
 	app := server.New(cfg)
@@ -81,7 +87,7 @@ func main() {
 	server.SetupGracefulShutdown(app, sqlDB, cfg.Shutdown)
 
 	// Routes
-	router.SetupRoutes(app, h)
+	router.SetupRoutes(app, authHandler, userHandler)
 
 	log.Info("Listening", zap.String("port", cfg.Server.Port))
 	if err := app.Listen(":" + cfg.Server.Port); err != nil {

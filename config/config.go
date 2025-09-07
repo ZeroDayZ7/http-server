@@ -40,11 +40,12 @@ type RateLimitConfig struct {
 }
 
 type Config struct {
-	Server    ServerConfig
-	Database  DBConfig
-	RateLimit RateLimitConfig
-	CORSAllow string
-	Shutdown  time.Duration
+	Server     ServerConfig
+	Database   DBConfig
+	RateLimit  RateLimitConfig
+	CORSAllow  string
+	Shutdown   time.Duration
+	SessionTTL time.Duration
 }
 
 // =================== LoadConfig ===================
@@ -73,6 +74,7 @@ func LoadConfig(log *logger.Logger) (Config, error) {
 	viper.SetDefault("RATE_LIMIT_WINDOW_SEC", 60)
 	viper.SetDefault("CORS_ALLOW_ORIGINS", "*")
 	viper.SetDefault("SHUTDOWN_TIMEOUT_SEC", 5)
+	viper.SetDefault("SESSION_TTL_MINUTES", 1440) // 24h
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -106,8 +108,9 @@ func LoadConfig(log *logger.Logger) (Config, error) {
 			Max:    viper.GetInt("RATE_LIMIT_MAX"),
 			Window: time.Duration(viper.GetInt("RATE_LIMIT_WINDOW_SEC")) * time.Second,
 		},
-		CORSAllow: viper.GetString("CORS_ALLOW_ORIGINS"),
-		Shutdown:  time.Duration(viper.GetInt("SHUTDOWN_TIMEOUT_SEC")) * time.Second,
+		CORSAllow:  viper.GetString("CORS_ALLOW_ORIGINS"),
+		Shutdown:   time.Duration(viper.GetInt("SHUTDOWN_TIMEOUT_SEC")) * time.Second,
+		SessionTTL: time.Duration(viper.GetInt("SESSION_TTL_MINUTES")) * time.Minute,
 	}
 
 	log.Info("Configuration loaded")

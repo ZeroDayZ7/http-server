@@ -12,15 +12,15 @@ import (
 	"go.uber.org/zap"
 )
 
-type UserService struct {
+type AuthService struct {
 	repo repository.UserRepository
 }
 
-func NewUserService(repo repository.UserRepository) *UserService {
-	return &UserService{repo: repo}
+func NewAuthService(repo repository.UserRepository) *AuthService {
+	return &AuthService{repo: repo}
 }
 
-func (s *UserService) IsEmailExists(email string) (bool, error) {
+func (s *AuthService) IsEmailExists(email string) (bool, error) {
 	log := logger.GetLogger()
 	log.Debug("IsEmailExists", zap.String("email", email))
 
@@ -32,7 +32,7 @@ func (s *UserService) IsEmailExists(email string) (bool, error) {
 	return exists, nil
 }
 
-func (s *UserService) IsUsernameExists(username string) (bool, error) {
+func (s *AuthService) IsUsernameExists(username string) (bool, error) {
 	log := logger.GetLogger()
 	log.Debug("IsUsernameExists", zap.String("username", username))
 
@@ -44,7 +44,7 @@ func (s *UserService) IsUsernameExists(username string) (bool, error) {
 	return exists, nil
 }
 
-func (s *UserService) IsEmailOrUsernameExists(email, username string) (bool, bool, error) {
+func (s *AuthService) IsEmailOrUsernameExists(email, username string) (bool, bool, error) {
 	existsEmail, existsUsername, err := s.repo.EmailOrUsernameExists(email, username)
 	if err != nil {
 		log := logger.GetLogger()
@@ -54,7 +54,7 @@ func (s *UserService) IsEmailOrUsernameExists(email, username string) (bool, boo
 	return existsEmail, existsUsername, nil
 }
 
-func (s *UserService) GetUserByEmail(email string) (*model.User, error) {
+func (s *AuthService) GetUserByEmail(email string) (*model.User, error) {
 	u, err := s.repo.GetByEmail(email)
 	if err != nil {
 		return nil, err
@@ -65,7 +65,7 @@ func (s *UserService) GetUserByEmail(email string) (*model.User, error) {
 	return u, nil
 }
 
-func (s *UserService) VerifyPassword(user *model.User, password string) (bool, error) {
+func (s *AuthService) VerifyPassword(user *model.User, password string) (bool, error) {
 	valid, err := security.VerifyPassword(password, user.Password)
 	if err != nil {
 		return false, err
@@ -73,7 +73,7 @@ func (s *UserService) VerifyPassword(user *model.User, password string) (bool, e
 	return valid, nil
 }
 
-func (s *UserService) Verify2FACode(email, code string) (bool, error) {
+func (s *AuthService) Verify2FACode(email, code string) (bool, error) {
 	log := logger.GetLogger()
 	log.Debug("Verify2FACode", zap.String("email", email))
 
@@ -90,7 +90,7 @@ func (s *UserService) Verify2FACode(email, code string) (bool, error) {
 	return code == u.TwoFactorSecret, nil
 }
 
-func (s *UserService) Register(username, email, rawPassword string) (*model.User, error) {
+func (s *AuthService) Register(username, email, rawPassword string) (*model.User, error) {
 	log := logger.GetLogger()
 	log.Debug("Register attempt", zap.String("email", email), zap.String("username", username))
 

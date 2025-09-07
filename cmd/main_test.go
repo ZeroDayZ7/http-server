@@ -52,11 +52,17 @@ func createTestApp(t *testing.T) *fiber.App {
 	if err := conn.AutoMigrate(&model.User{}); err != nil {
 		t.Fatalf("AutoMigrate failed: %v", err)
 	}
+	sessionTTL := 24 * time.Hour
+	// Repo, service, handler
+	userRepo := mysqlrepo.NewUserRepository(conn)
+	sessionRepo := mysqlrepo.NewSessionRepository(conn)
 
-	// repo, service, handler
-	repo := mysqlrepo.NewUserRepository(conn)
-	svc := service.NewUserService(repo)
-	h := handler.NewUserHandler(svc)
+	authSvc := service.NewAuthService(userRepo)
+	userSvc := service.NewUserService(userRepo)
+	sessionSvc := service.NewSessionService(sessionRepo, sessionTTL)
+
+	authHandler := handler.NewAuthHandler(authSvc, sessionSvc)
+	userHandler := handler.NewUserHandler(userSvc, sessionSvc)
 
 	// Fiber app
 	app := fiber.New(fiber.Config{
@@ -86,7 +92,7 @@ func createTestApp(t *testing.T) *fiber.App {
 	}))
 
 	// Routes
-	router.SetupRoutes(app, h)
+	router.SetupRoutes(app, authHandler, userHandler)
 
 	return app
 }

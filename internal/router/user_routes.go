@@ -7,6 +7,8 @@ import (
 )
 
 func setupUserRoutes(app *fiber.App, h *handler.UserHandler) {
+	_ = h
+
 	users := app.Group("/users")
 	protected := users.Group("/")
 	protected.Use(config.NewLimiter("users"))

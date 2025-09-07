@@ -9,7 +9,7 @@ import (
 	"github.com/zerodayz7/http-server/config"
 )
 
-func setupAuthRoutes(app *fiber.App, h *handler.UserHandler) {
+func setupAuthRoutes(app *fiber.App, h *handler.AuthHandler) {
 	auth := app.Group("/auth")
 	auth.Use(config.NewLimiter("auth"))
 

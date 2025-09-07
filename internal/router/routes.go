@@ -6,9 +6,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func SetupRoutes(app *fiber.App, h *handler.UserHandler) {
+func SetupRoutes(app *fiber.App, authHandler *handler.AuthHandler, userHandler *handler.UserHandler) {
 	SetupHealthRoutes(app)
-	setupAuthRoutes(app, h)
-	setupUserRoutes(app, h)
+	setupAuthRoutes(app, authHandler)
+	setupUserRoutes(app, userHandler)
 	SetupFallbackHandlers(app)
 }
