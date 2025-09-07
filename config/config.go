@@ -1,16 +1,14 @@
-// internal/config/config.go
 package config
 
 import (
 	"fmt"
 	"time"
 
+	"github.com/gofiber/fiber/v2/middleware/session"
 	"github.com/spf13/viper"
 	"github.com/zerodayz7/http-server/internal/shared/logger"
 	"go.uber.org/zap"
 )
-
-// =================== Sekcje konfiguracji ===================
 
 type ServerConfig struct {
 	AppName       string
@@ -48,13 +46,14 @@ type Config struct {
 	SessionTTL time.Duration
 }
 
-// =================== LoadConfig ===================
+var AppConfig Config
+var Store *session.Store
 
-func LoadConfig(log *logger.Logger) (Config, error) {
+func LoadConfigGlobal() error {
+	log := logger.GetLogger()
+
 	viper.SetConfigFile(".env")
 	viper.AutomaticEnv()
-
-	// Defaults
 	viper.SetDefault("APP_NAME", "http-server")
 	viper.SetDefault("PORT", "8080")
 	viper.SetDefault("BODY_LIMIT_MB", 2)
@@ -74,16 +73,16 @@ func LoadConfig(log *logger.Logger) (Config, error) {
 	viper.SetDefault("RATE_LIMIT_WINDOW_SEC", 60)
 	viper.SetDefault("CORS_ALLOW_ORIGINS", "*")
 	viper.SetDefault("SHUTDOWN_TIMEOUT_SEC", 5)
-	viper.SetDefault("SESSION_TTL_MINUTES", 1440) // 24h
+	viper.SetDefault("SESSION_TTL_MINUTES", 1440)
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			log.Error("Error loading .env", zap.Error(err))
-			return Config{}, fmt.Errorf("error loading .env: %v", err)
+			return fmt.Errorf("error loading .env: %v", err)
 		}
 	}
 
-	cfg := Config{
+	AppConfig = Config{
 		Server: ServerConfig{
 			AppName:       viper.GetString("APP_NAME"),
 			Port:          viper.GetString("PORT"),
@@ -114,6 +113,5 @@ func LoadConfig(log *logger.Logger) (Config, error) {
 	}
 
 	log.Info("Configuration loaded")
-
-	return cfg, nil
+	return nil
 }

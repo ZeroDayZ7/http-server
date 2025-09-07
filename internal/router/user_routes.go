@@ -1,24 +1,27 @@
 package router
 
 import (
+	"time"
+
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/csrf"
 	"github.com/gofiber/fiber/v2/middleware/session"
 	"github.com/zerodayz7/http-server/config"
-	"github.com/zerodayz7/http-server/internal/middleware" // <- dodaj import własnego middleware
 )
 
-// setupUserRoutes ustawia wszystkie trasy dla użytkowników
-func setupUserRoutes(app *fiber.App) {
+func SetupUserRoutes(app *fiber.App, sessionStore *session.Store, sessionTTL time.Duration) {
 	users := app.Group("/users")
 	protected := users.Group("/")
 	protected.Use(config.NewLimiter("users"))
 
-	// Middleware sesji z Locals
-	protected.Use(middleware.SessionMiddlewareFromLocals())
-
-	// Trasa testowa
+	// Test sesji
 	protected.Get("/test-session", func(c *fiber.Ctx) error {
-		sess := c.Locals("session").(*session.Session)
+		sess, err := sessionStore.Get(c)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to get session",
+			})
+		}
 		userID := sess.Get("userID")
 		return c.JSON(fiber.Map{
 			"message": "Middleware działa!",
@@ -26,12 +29,16 @@ func setupUserRoutes(app *fiber.App) {
 		})
 	})
 
-	// CSRF test
-	protected.Get("/test-csrf", middleware.NewCSRFMiddlewareFromLocals(), func(c *fiber.Ctx) error {
-		sessionID := c.Cookies("session_id")
+	// Middleware CSRF
+	csrfMiddleware := csrf.New(config.NewCSRFConfig(sessionStore.Storage, sessionTTL))
+	protected.Use(csrfMiddleware)
+
+	// Test CSRF
+	protected.Post("/test-csrf", func(c *fiber.Ctx) error {
+		token := c.Locals("csrf")
 		return c.JSON(fiber.Map{
 			"message":    "CSRF token zweryfikowany!",
-			"session_id": sessionID,
+			"csrf_token": token,
 		})
 	})
 }

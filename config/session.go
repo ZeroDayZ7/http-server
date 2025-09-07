@@ -4,15 +4,34 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2/middleware/session"
-	"github.com/zerodayz7/http-server/internal/middleware"
+	"github.com/gofiber/storage/mysql/v2"
 )
 
-func NewFiberSessionStore(sessionSvc *middleware.SessionService) *session.Store {
-	return session.New(session.Config{
-		Expiration:     24 * time.Hour,
-		CookieHTTPOnly: true,
-		CookieSecure:   false,
-		CookieSameSite: "Lax",
-		Storage:        middleware.NewMySQLStore(sessionSvc),
+var store *session.Store
+
+// InitSessionStore inicjalizuje Fiber session store z MySQL
+func InitSessionStore(dsn string, ttl time.Duration) *session.Store {
+	if store != nil {
+		return store
+	}
+
+	mysqlStorage := mysql.New(mysql.Config{
+		ConnectionURI: dsn,
+		Reset:         false,
+		GCInterval:    10 * time.Second,
 	})
+
+	store = session.New(session.Config{
+		Storage:        mysqlStorage,
+		Expiration:     ttl,
+		CookieSecure:   false,
+		CookieHTTPOnly: true,
+		CookieSameSite: "Strict",
+	})
+
+	return store
+}
+
+func SessionStore() *session.Store {
+	return store
 }

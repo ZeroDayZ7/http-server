@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
+	"github.com/zerodayz7/http-server/config"
 	"github.com/zerodayz7/http-server/internal/errors"
 	"github.com/zerodayz7/http-server/internal/service"
 	"github.com/zerodayz7/http-server/internal/shared"
@@ -20,10 +21,20 @@ func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 }
 
 func (h *AuthHandler) GetCSRFToken(c *fiber.Ctx) error {
-	// token pobierany z sesji z Locals
 	sess := c.Locals("session").(*session.Session)
-	token := sess.Get("csrfToken")
-	return c.JSON(fiber.Map{"csrf_token": token})
+
+	csrfToken := sess.Get("csrfToken")
+	if csrfToken == nil {
+		csrfToken = shared.GenerateCSRFToken()
+		sess.Set("csrfToken", csrfToken)
+		if err := sess.Save(); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to save session",
+			})
+		}
+	}
+
+	return c.JSON(fiber.Map{"csrf_token": csrfToken})
 }
 
 func (h *AuthHandler) Login(c *fiber.Ctx) error {
@@ -43,11 +54,13 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"2fa_required": true})
 	}
 
-	// Pobierz sesję z Locals
-	sess := c.Locals("session").(*session.Session)
+	sess, err := config.SessionStore().Get(c)
+	if err != nil {
+		return errors.SendAppError(c, errors.ErrInternal)
+	}
+
 	sess.Set("userID", user.ID)
 
-	// CSRF token generowany w middleware
 	csrfToken := sess.Get("csrfToken")
 	if csrfToken == nil {
 		csrfToken = shared.GenerateCSRFToken()

@@ -8,16 +8,15 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/csrf"
 )
 
-// NewCSRFConfig zwraca skonfigurowany CSRF z Storage (double submit)
-func NewCSRFConfig(storage fiber.Storage) csrf.Config {
+func NewCSRFConfig(storage fiber.Storage, ttl time.Duration) csrf.Config {
 	return csrf.Config{
-		Storage:        storage, // Użyj Storage zamiast Session dla double submit
+		Storage:        storage,
 		KeyLookup:      "header:X-CSRF-Token",
 		CookieName:     "csrf_",
 		ContextKey:     "csrf",
-		Expiration:     1 * time.Hour, // Lub cfg.SessionTTL
-		CookieSecure:   false,         // true w prod
-		CookieHTTPOnly: true,
+		Expiration:     ttl,
+		CookieSecure:   false,
+		CookieHTTPOnly: false,
 		CookieSameSite: "Strict",
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			if strings.HasPrefix(c.Path(), "/auth/") || c.Accepts("json") == "json" {
