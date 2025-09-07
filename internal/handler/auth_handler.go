@@ -2,31 +2,27 @@ package handler
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/session"
 	"github.com/zerodayz7/http-server/internal/errors"
-	"github.com/zerodayz7/http-server/internal/middleware"
-	"github.com/zerodayz7/http-server/internal/model"
 	"github.com/zerodayz7/http-server/internal/service"
 	"github.com/zerodayz7/http-server/internal/shared"
 	"github.com/zerodayz7/http-server/internal/validator"
 )
 
 type AuthHandler struct {
-	authService    *service.AuthService
-	sessionService *service.SessionService
-	csrfMiddleware *middleware.CSRFMiddleware
+	authService *service.AuthService
 }
 
-func NewAuthHandler(authService *service.AuthService, sessionService *service.SessionService) *AuthHandler {
-	csrf := middleware.NewCSRFMiddleware(sessionService)
+func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 	return &AuthHandler{
-		authService:    authService,
-		sessionService: sessionService,
-		csrfMiddleware: csrf,
+		authService: authService,
 	}
 }
 
 func (h *AuthHandler) GetCSRFToken(c *fiber.Ctx) error {
-	token := h.csrfMiddleware.GenerateCSRFToken(c)
+	// token pobierany z sesji z Locals
+	sess := c.Locals("session").(*session.Session)
+	token := sess.Get("csrfToken")
 	return c.JSON(fiber.Map{"csrf_token": token})
 }
 
@@ -47,20 +43,20 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"2fa_required": true})
 	}
 
-	// Pobierz istniejącą sesję (anonimową)
-	session := c.Locals("session").(*model.Session)
+	// Pobierz sesję z Locals
+	sess := c.Locals("session").(*session.Session)
+	sess.Set("userID", user.ID)
 
-	// Przypisz userID do sesji
-	session.UserID = user.ID
-	if err := h.sessionService.UpdateSessionData(session.SessionID, nil); err != nil {
-		return errors.SendAppError(c, errors.ErrInternal)
+	// CSRF token generowany w middleware
+	csrfToken := sess.Get("csrfToken")
+	if csrfToken == nil {
+		csrfToken = shared.GenerateCSRFToken()
+		sess.Set("csrfToken", csrfToken)
 	}
 
-	// Ustaw ciasteczko sesji
-	shared.SetSessionCookie(c, session.SessionID)
-
-	// Generuj CSRF token
-	csrfToken := h.csrfMiddleware.GenerateCSRFToken(c)
+	if err := sess.Save(); err != nil {
+		return errors.SendAppError(c, errors.ErrInternal)
+	}
 
 	return c.JSON(fiber.Map{
 		"2fa_required": false,

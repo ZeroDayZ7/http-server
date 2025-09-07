@@ -3,8 +3,11 @@ package main
 import (
 	"os"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
+	"github.com/gofiber/fiber/v2/middleware/csrf"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
+	"github.com/gofiber/fiber/v2/middleware/session"
 	"github.com/zerodayz7/http-server/config"
 	"github.com/zerodayz7/http-server/internal/handler"
 	"github.com/zerodayz7/http-server/internal/middleware"
@@ -68,10 +71,16 @@ func main() {
 	userSvc := service.NewUserService(userRepo)
 	sessionSvc := service.NewSessionService(sessionRepo, cfg.SessionTTL)
 
-	authHandler := handler.NewAuthHandler(authSvc, sessionSvc)
+	authHandler := handler.NewAuthHandler(authSvc)
 	userHandler := handler.NewUserHandler(userSvc, sessionSvc)
 
-	// Fiber app
+	// ZMIANA: Stwórz store dla sesji (nie używaj jako middleware bezpośrednio)
+	sessionStore := session.New(session.Config{
+		Storage:    middleware.NewMySQLStore(sessionSvc),
+		Expiration: cfg.SessionTTL,
+	})
+
+	// Przekaż store do Locals dla custom middleware
 	app := server.New(cfg)
 
 	// Middleware
@@ -83,13 +92,26 @@ func main() {
 	app.Use(cors.New(config.CorsConfig(cfg.CORSAllow)))
 	app.Use(config.NewLimiter("global"))
 	app.Use(compress.New(config.CompressConfig()))
-	app.Use(middleware.SessionMiddleware(sessionSvc))
+
+	// ZMIANA: Przekaż store do wszystkich requestów via Locals
+	app.Use(func(c *fiber.Ctx) error {
+		c.Locals("sessionStore", sessionStore) // Zmień nazwę na "sessionStore" dla jasności
+		return c.Next()
+	})
+
+	// ZMIANA: Użyj custom SessionMiddlewareFromLocals (już zoptymalizowany)
+	app.Use(middleware.SessionMiddlewareFromLocals())
+
+	// ZMIANA: CSRF z Storage (double submit, używa MySQLStore bezpośrednio)
+	csrfStore := middleware.NewMySQLStore(sessionSvc) // Oddzielny store dla CSRF, ale ten sam service
+	csrfConfig := config.NewCSRFConfig(csrfStore)     // Przekaż Storage, nie Session
+	app.Use(csrf.New(csrfConfig))
 
 	// Graceful shutdown
 	server.SetupGracefulShutdown(app, sqlDB, cfg.Shutdown)
 
 	// Routes
-	router.SetupRoutes(app, authHandler, userHandler, sessionSvc)
+	router.SetupRoutes(app, authHandler, userHandler)
 
 	log.Info("Listening", zap.String("port", cfg.Server.Port))
 	if err := app.Listen(":" + cfg.Server.Port); err != nil {
