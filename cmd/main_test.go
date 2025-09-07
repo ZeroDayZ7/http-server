@@ -29,14 +29,17 @@ func createTestApp(t *testing.T) *fiber.App {
 	sessionStore := config.InitSessionStore()
 
 	userRepo := mysqlrepo.NewUserRepository(conn)
+	interactionRepo := mysqlrepo.NewInteractionRepository(conn)
 	authSvc := service.NewAuthService(userRepo)
 	userSvc := service.NewUserService(userRepo)
+	interactionSvc := service.NewInteractionService(interactionRepo)
 
 	authHandler := handler.NewAuthHandler(authSvc)
 	userHandler := handler.NewUserHandler(userSvc)
+	interactionHandler := handler.NewInteractionHandler(interactionSvc)
 
 	app := config.NewFiberApp(sessionStore)
-	router.SetupRoutes(app, authHandler, userHandler)
+	router.SetupRoutes(app, authHandler, userHandler, interactionHandler)
 	return app
 }
 

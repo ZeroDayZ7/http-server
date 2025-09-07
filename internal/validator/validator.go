@@ -19,6 +19,10 @@ type TwoFARequest struct {
 	Code string `json:"code" validate:"required,len=6,numeric"`
 }
 
+type InteractionRequest struct {
+	Type string `json:"type" validate:"required,oneof=like dislike"`
+}
+
 func ValidateStruct(s any) map[string]string {
 	return middleware.ValidateStruct(s)
 }

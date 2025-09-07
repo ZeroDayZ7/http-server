@@ -9,13 +9,17 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/gofiber/fiber/v2/middleware/session"
+	"github.com/zerodayz7/http-server/internal/cache"
 )
 
 func NewFiberApp(sessionStore *session.Store) *fiber.App {
 	app := fiber.New()
 
+	cache.Init()
+
 	app.Use(requestid.New())
 	app.Use(recover.New())
+	app.Use(FiberLoggerMiddleware())
 	app.Use(helmet.New(HelmetConfig()))
 	app.Use(cors.New(CorsConfig()))
 	app.Use(NewLimiter("global"))

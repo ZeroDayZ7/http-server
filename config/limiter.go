@@ -18,6 +18,7 @@ var RateLimitPresets = map[string]struct {
 	"auth":   {Max: 10, Window: 60 * time.Second},
 	"health": {Max: 20, Window: 60 * time.Second},
 	"users":  {Max: 5, Window: 60 * time.Second},
+	"visits": {Max: 30, Window: 30 * time.Minute},
 }
 
 func NewLimiter(group string) fiber.Handler {

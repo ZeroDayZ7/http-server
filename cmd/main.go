@@ -27,10 +27,14 @@ func main() {
 
 	// Repos, service, handlers
 	userRepo := mysqlrepo.NewUserRepository(conn)
+	interactionRepo := mysqlrepo.NewInteractionRepository(conn)
 	authSvc := service.NewAuthService(userRepo)
 	userSvc := service.NewUserService(userRepo)
+	interactionSvc := service.NewInteractionService(interactionRepo)
+
 	authHandler := handler.NewAuthHandler(authSvc)
 	userHandler := handler.NewUserHandler(userSvc)
+	interactionHandler := handler.NewInteractionHandler(interactionSvc)
 
 	// session
 	sessionStore := config.InitSessionStore()
@@ -39,7 +43,7 @@ func main() {
 	app := config.NewFiberApp(sessionStore)
 
 	// routes
-	router.SetupRoutes(app, authHandler, userHandler)
+	router.SetupRoutes(app, authHandler, userHandler, interactionHandler)
 
 	// graceful shutdown
 	server.SetupGracefulShutdown(app, closeDB, config.AppConfig.Shutdown)
