@@ -94,3 +94,22 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		"user":    user,
 	})
 }
+
+func (h *AuthHandler) Verify2FA(c *fiber.Ctx) error {
+	body := c.Locals("validatedBody").(validator.TwoFARequest)
+
+	sess := c.Locals("session").(*session.Session)
+	userID := sess.Get("userID").(uint)
+
+	ok, err := h.authService.Verify2FACodeByID(userID, body.Code)
+	if err != nil {
+		return errors.SendAppError(c, errors.ErrInvalidCredentials)
+	}
+	if !ok {
+		return errors.SendAppError(c, errors.ErrInvalid2FACode)
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "2FA verified successfully",
+	})
+}

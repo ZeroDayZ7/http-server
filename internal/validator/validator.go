@@ -16,8 +16,7 @@ type LoginRequest struct {
 }
 
 type TwoFARequest struct {
-	UserID string `json:"user_id" validate:"required,uuid"`
-	Code   string `json:"code" validate:"required,len=6,numeric"`
+	Code string `json:"code" validate:"required,len=6,numeric"`
 }
 
 func ValidateStruct(s any) map[string]string {

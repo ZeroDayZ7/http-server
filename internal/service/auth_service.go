@@ -73,17 +73,17 @@ func (s *AuthService) VerifyPassword(user *model.User, password string) (bool, e
 	return valid, nil
 }
 
-func (s *AuthService) Verify2FACode(email, code string) (bool, error) {
+func (s *AuthService) Verify2FACodeByID(userID uint, code string) (bool, error) {
 	log := logger.GetLogger()
-	log.Debug("Verify2FACode", zap.String("email", email))
+	log.Debug("Verify2FACodeByID", zap.Uint("userID", userID))
 
-	u, err := s.repo.GetByEmail(email)
+	u, err := s.repo.GetByID(userID)
 	if err != nil {
-		log.Error("GetByEmail failed", zap.Error(err))
+		log.Error("GetByID failed", zap.Error(err))
 		return false, err
 	}
 	if !u.TwoFactorEnabled {
-		log.Warn("2FA not enabled", zap.String("email", email))
+		log.Warn("2FA not enabled", zap.Uint("userID", userID))
 		return false, nil
 	}
 
