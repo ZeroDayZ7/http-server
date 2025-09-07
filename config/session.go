@@ -10,10 +10,14 @@ import (
 var store *session.Store
 
 // InitSessionStore inicjalizuje Fiber session store z MySQL
-func InitSessionStore(dsn string, ttl time.Duration) *session.Store {
+func InitSessionStore() *session.Store {
 	if store != nil {
 		return store
 	}
+
+	isProd := AppConfig.Server.Env == "production"
+	ttl := AppConfig.SessionTTL
+	dsn := AppConfig.Database.DSN
 
 	mysqlStorage := mysql.New(mysql.Config{
 		ConnectionURI: dsn,
@@ -24,7 +28,7 @@ func InitSessionStore(dsn string, ttl time.Duration) *session.Store {
 	store = session.New(session.Config{
 		Storage:        mysqlStorage,
 		Expiration:     ttl,
-		CookieSecure:   false,
+		CookieSecure:   isProd,
 		CookieHTTPOnly: true,
 		CookieSameSite: "Strict",
 	})

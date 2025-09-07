@@ -1,44 +1,27 @@
 package router
 
 import (
-	"time"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/csrf"
-	"github.com/gofiber/fiber/v2/middleware/session"
 	"github.com/zerodayz7/http-server/config"
+	"github.com/zerodayz7/http-server/internal/handler"
 )
 
-func SetupUserRoutes(app *fiber.App, sessionStore *session.Store, sessionTTL time.Duration) {
+func SetupUserRoutes(app *fiber.App, h *handler.UserHandler) {
 	users := app.Group("/users")
 	protected := users.Group("/")
 	protected.Use(config.NewLimiter("users"))
 
-	// Test sesji
-	protected.Get("/test-session", func(c *fiber.Ctx) error {
-		sess, err := sessionStore.Get(c)
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Failed to get session",
-			})
-		}
-		userID := sess.Get("userID")
-		return c.JSON(fiber.Map{
-			"message": "Middleware działa!",
-			"userID":  userID,
-		})
-	})
+	// Test sesji – handler pobiera sesję z c.Locals("session")
 
-	// Middleware CSRF
-	csrfMiddleware := csrf.New(config.NewCSRFConfig(sessionStore.Storage, sessionTTL))
-	protected.Use(csrfMiddleware)
+	// Middleware CSRF dla wybranych endpointów
+	csrfProtected := protected.Group("/")
+	csrfProtected.Use(csrf.New(config.NewCSRFConfig(config.SessionStore().Storage)))
 
-	// Test CSRF
-	protected.Post("/test-csrf", func(c *fiber.Ctx) error {
-		token := c.Locals("csrf")
-		return c.JSON(fiber.Map{
-			"message":    "CSRF token zweryfikowany!",
-			"csrf_token": token,
-		})
-	})
+	// Test CSRF – handler pobiera token z c.Locals("csrf")
+	// csrfProtected.Post("/test-csrf", h.TestCSRF)
+
+	// Przykładowe routy użytkownika
+	// protected.Get("/me", h.GetProfile)
+	// protected.Post("/update", h.UpdateProfile)
 }
