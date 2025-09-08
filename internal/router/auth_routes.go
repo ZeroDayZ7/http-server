@@ -13,6 +13,8 @@ func setupAuthRoutes(app *fiber.App, h *handler.AuthHandler) {
 	auth := app.Group("/auth")
 	auth.Use(config.NewLimiter("auth"))
 
+	auth.Get("/init-session", h.InitSession)
+
 	auth.Get("/csrf-token", h.GetCSRFToken)
 
 	auth.Post("/login",

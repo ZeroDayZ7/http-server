@@ -6,7 +6,7 @@ import "github.com/gofiber/fiber/v2"
 // SetSessionCookie ustawia ciasteczko sesji
 func SetSessionCookie(c *fiber.Ctx, sessionID string) {
 	c.Cookie(&fiber.Cookie{
-		Name:     "session_id",
+		Name:     "__Host-session_",
 		Value:    sessionID,
 		HTTPOnly: true,
 		Secure:   true, // włączone w produkcji
@@ -18,7 +18,7 @@ func SetSessionCookie(c *fiber.Ctx, sessionID string) {
 // ClearSessionCookie usuwa ciasteczko sesji (wylogowanie)
 func ClearSessionCookie(c *fiber.Ctx) {
 	c.Cookie(&fiber.Cookie{
-		Name:     "session_id",
+		Name:     "__Host-session_",
 		Value:    "",
 		HTTPOnly: true,
 		Secure:   true,

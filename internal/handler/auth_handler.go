@@ -20,12 +20,32 @@ func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 	}
 }
 
+func (h *AuthHandler) InitSession(c *fiber.Ctx) error {
+	// Pobierz sesję, Fiber automatycznie ją tworzy
+	sess := c.Locals("session").(*session.Session)
+
+	// Możesz tu opcjonalnie ustawić dane w sesji
+	UserID := shared.GenerateUuid()
+	sess.Set("UserID", UserID)
+	if err := sess.Save(); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to save session",
+		})
+	}
+
+	// Zwróć JSON, nawet jeśli niczego nie potrzebujesz
+	return c.JSON(fiber.Map{
+		"sessionInitialized": true,
+		"UserID":             UserID,
+	})
+}
+
 func (h *AuthHandler) GetCSRFToken(c *fiber.Ctx) error {
 	sess := c.Locals("session").(*session.Session)
 
 	csrfToken := sess.Get("csrfToken")
 	if csrfToken == nil {
-		csrfToken = shared.GenerateCSRFToken()
+		csrfToken = shared.GenerateUuid()
 		sess.Set("csrfToken", csrfToken)
 		if err := sess.Save(); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -63,7 +83,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 
 	csrfToken := sess.Get("csrfToken")
 	if csrfToken == nil {
-		csrfToken = shared.GenerateCSRFToken()
+		csrfToken = shared.GenerateUuid()
 		sess.Set("csrfToken", csrfToken)
 	}
 

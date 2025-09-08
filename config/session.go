@@ -27,6 +27,7 @@ func InitSessionStore() *session.Store {
 
 	store = session.New(session.Config{
 		Storage:        mysqlStorage,
+		KeyLookup:      "cookie:session_id",
 		Expiration:     ttl,
 		CookieSecure:   true,
 		CookieHTTPOnly: true,

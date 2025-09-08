@@ -8,8 +8,6 @@ include .env.dev
 .PHONY: run migrate-up migrate-down migrate-create migrate-goto del-sess
 
 run:
-	@mkdir -p $(BIN_DIR)
-	@echo "Building and running $(BINARY)..."
 	go build -o $(BIN_DIR)/$(BINARY) $(MAIN_DIR)
 	$(BIN_DIR)/$(BINARY)
 
