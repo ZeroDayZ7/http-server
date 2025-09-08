@@ -8,17 +8,19 @@ import (
 )
 
 func NewCSRFConfig(storage fiber.Storage) csrf.Config {
-	isProd := AppConfig.Server.Env == "production"
+	// isProd := AppConfig.Server.Env == "production"
 	ttl := AppConfig.SessionTTL
 	return csrf.Config{
-		Storage:        storage,
-		KeyLookup:      "header:X-CSRF-Token",
-		CookieName:     "csrf_",
-		ContextKey:     "csrf",
-		Expiration:     ttl,
-		CookieSecure:   isProd,
+		// Storage: storage,
+		Session:    SessionStore(),
+		KeyLookup:  "header:X-CSRF-Token",
+		CookieName: "__Host-csrf_",
+		ContextKey: "csrf",
+		Expiration: ttl,
+		// KeyGenerator:      shared.GenerateCSRFToken,
+		CookieSecure:   true,
 		CookieHTTPOnly: false,
-		CookieSameSite: "Strict",
+		CookieSameSite: "Lax", // Strict, Lax
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			if strings.HasPrefix(c.Path(), "/auth/") || c.Accepts("json") == "json" {
 				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{

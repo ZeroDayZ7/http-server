@@ -1,27 +1,38 @@
+# ===============================
+# HTTP-Server Makefile
+# ===============================
+
 include .env
-DB_PATH=mysql://${MYSQL_DSN}
-MIGRATIONS_DIR=database/migrations
-MAIN_FILE =cmd/main.go
+include .env.dev
 
-
-.PHONY: run migrate-up migrate-down migrate-create
+.PHONY: run migrate-up migrate-down migrate-create migrate-goto del-sess
 
 run:
-	go run ${MAIN_FILE}
+	@mkdir -p $(BIN_DIR)
+	@echo "Building and running $(BINARY)..."
+	go build -o $(BIN_DIR)/$(BINARY) $(MAIN_DIR)
+	$(BIN_DIR)/$(BINARY)
 
 migrate-up:
-	migrate -path database/migrations -database "$(DB_PATH)" -verbose up
+	@echo "Applying all migrations..."
+	migrate -path $(MIGRATIONS_DIR) -database "$(DB_PATH)" -verbose up
 
 migrate-down:
-	migrate -path database/migrations -database "$(DB_PATH)" -verbose down 1
+	@echo "Rolling back last migration..."
+	migrate -path $(MIGRATIONS_DIR) -database "$(DB_PATH)" -verbose down 1
 
 migrate-goto:
-	@echo "Podaj numer wersji do której chcesz cofnąć lub przejść (np. 1):"
-	@read version; \
-	migrate -path database/migrations -database "$(DB_PATH)" -verbose goto $$version
-
+	@echo "Podaj numer wersji (np. 1):"; \
+	read version; \
+	migrate -path $(MIGRATIONS_DIR) -database "$(DB_PATH)" -verbose goto $$version
 
 migrate-create:
-	@echo "Podaj nazwę migracji (np. add_column):"
-	@read name; \
-	migrate create -ext sql -dir database/migrations -seq $$name
+	@echo "Podaj nazwę migracji (np. add_column):"; \
+	read name; \
+	migrate create -ext sql -dir $(MIGRATIONS_DIR) -seq $$name
+
+del-sess:
+	@echo "Truncating all sessions from DB..."
+	@docker exec -i $(MYSQL_CONTAINER_NAME) \
+	mysql -h $(MYSQL_HOST) -P $(MYSQL_PORT) -u $(MYSQL_USER) -p$(MYSQL_PASSWORD) $(MYSQL_DB) \
+	-e "TRUNCATE TABLE fiber_storage;"

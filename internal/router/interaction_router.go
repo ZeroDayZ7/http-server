@@ -13,8 +13,7 @@ func SetupStatsRoutes(app *fiber.App, h *handler.InteractionHandler) {
 	stats := app.Group("/stats")
 	stats.Use(config.NewLimiter("visits"))
 
-	// Rejestracja wizyty
-	stats.Get("/visit", h.RecordVisit)
+	stats.Get("/interactions", h.RecordVisit)
 
 	stats.Post("/interactions",
 		middleware.ValidateBody[validator.InteractionRequest](),

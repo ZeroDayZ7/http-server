@@ -15,7 +15,7 @@ func InitSessionStore() *session.Store {
 		return store
 	}
 
-	isProd := AppConfig.Server.Env == "production"
+	// isProd := AppConfig.Server.Env == "production"
 	ttl := AppConfig.SessionTTL
 	dsn := AppConfig.Database.DSN
 
@@ -28,9 +28,9 @@ func InitSessionStore() *session.Store {
 	store = session.New(session.Config{
 		Storage:        mysqlStorage,
 		Expiration:     ttl,
-		CookieSecure:   isProd,
+		CookieSecure:   true,
 		CookieHTTPOnly: true,
-		CookieSameSite: "Strict",
+		CookieSameSite: "Lax",
 	})
 
 	return store
