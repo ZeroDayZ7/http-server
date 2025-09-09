@@ -20,7 +20,7 @@ func NewCSRFConfig(storage fiber.Storage) csrf.Config {
 		// KeyGenerator:      shared.GenerateCSRFToken,
 		CookieSecure:   true,
 		CookieHTTPOnly: false,
-		CookieSameSite: "Lax", // Strict, Lax
+		CookieSameSite: "None", // Strict, Lax
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			if strings.HasPrefix(c.Path(), "/auth/") || c.Accepts("json") == "json" {
 				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{

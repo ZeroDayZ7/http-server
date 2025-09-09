@@ -39,7 +39,7 @@ func createTestApp(t *testing.T) *fiber.App {
 	interactionHandler := handler.NewInteractionHandler(interactionSvc)
 
 	app := config.NewFiberApp(sessionStore)
-	router.SetupRoutes(app, authHandler, userHandler, interactionHandler)
+	router.SetupRoutes(app, authHandler, userHandler, interactionHandler, sessionStore)
 	return app
 }
 

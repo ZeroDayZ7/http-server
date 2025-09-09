@@ -43,7 +43,7 @@ func main() {
 	app := config.NewFiberApp(sessionStore)
 
 	// routes
-	router.SetupRoutes(app, authHandler, userHandler, interactionHandler)
+	router.SetupRoutes(app, authHandler, userHandler, interactionHandler, sessionStore)
 
 	// graceful shutdown
 	server.SetupGracefulShutdown(app, closeDB, config.AppConfig.Shutdown)

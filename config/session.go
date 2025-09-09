@@ -36,7 +36,7 @@ func InitSessionStore(db *gorm.DB) *session.Store {
 		Expiration:     ttl,
 		CookieSecure:   true,
 		CookieHTTPOnly: true,
-		CookieSameSite: "Lax",
+		CookieSameSite: "None",
 	})
 
 	return store
