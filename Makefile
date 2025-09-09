@@ -5,11 +5,16 @@
 include .env
 include .env.dev
 
-.PHONY: run migrate-up migrate-down migrate-create migrate-goto del-sess
+.PHONY: run migrate-up migrate-down migrate-create migrate-goto del-sess build-production
 
 run:
 	go build -o $(BIN_DIR)/$(BINARY) $(MAIN_DIR)
 	$(BIN_DIR)/$(BINARY)
+
+build-production:
+	@echo "Building FreeBSD binary..."
+	# uruchomienie skryptu PowerShell w Windows
+	powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-freebsd.ps1
 
 migrate-up:
 	@echo "Applying all migrations..."
