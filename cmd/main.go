@@ -37,7 +37,7 @@ func main() {
 	interactionHandler := handler.NewInteractionHandler(interactionSvc)
 
 	// session
-	sessionStore := config.InitSessionStore()
+	sessionStore := config.InitSessionStore(conn)
 
 	// Fiber
 	app := config.NewFiberApp(sessionStore)

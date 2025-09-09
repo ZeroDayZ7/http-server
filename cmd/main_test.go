@@ -26,7 +26,7 @@ func createTestApp(t *testing.T) *fiber.App {
 	// DB + Session z config
 	conn, closeDB := config.MustInitDB()
 	defer closeDB()
-	sessionStore := config.InitSessionStore()
+	sessionStore := config.InitSessionStore(conn)
 
 	userRepo := mysqlrepo.NewUserRepository(conn)
 	interactionRepo := mysqlrepo.NewInteractionRepository(conn)

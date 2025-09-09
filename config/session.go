@@ -5,24 +5,29 @@ import (
 
 	"github.com/gofiber/fiber/v2/middleware/session"
 	"github.com/gofiber/storage/mysql/v2"
+	"gorm.io/gorm"
 )
 
 var store *session.Store
 
-// InitSessionStore inicjalizuje Fiber session store z MySQL
-func InitSessionStore() *session.Store {
+// InitSessionStore initializes the Fiber session store with MySQL
+func InitSessionStore(db *gorm.DB) *session.Store {
 	if store != nil {
 		return store
 	}
 
+	sqlDB, err := db.DB() // conversion *gorm.DB → *sql.DB
+	if err != nil {
+		panic(err)
+	}
+
 	// isProd := AppConfig.Server.Env == "production"
 	ttl := AppConfig.SessionTTL
-	dsn := AppConfig.Database.DSN
 
 	mysqlStorage := mysql.New(mysql.Config{
-		ConnectionURI: dsn,
-		Reset:         false,
-		GCInterval:    10 * time.Second,
+		Db:         sqlDB,
+		Reset:      false,
+		GCInterval: 10 * time.Second,
 	})
 
 	store = session.New(session.Config{

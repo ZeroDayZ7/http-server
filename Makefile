@@ -34,3 +34,8 @@ del-sess:
 	@docker exec -i $(MYSQL_CONTAINER_NAME) \
 	mysql -h $(MYSQL_HOST) -P $(MYSQL_PORT) -u $(MYSQL_USER) -p$(MYSQL_PASSWORD) $(MYSQL_DB) \
 	-e "TRUNCATE TABLE fiber_storage;"
+
+	@docker exec -i $(MYSQL_CONTAINER_NAME) \
+	mysql -h $(MYSQL_HOST) -P $(MYSQL_PORT) -u $(MYSQL_USER) -p$(MYSQL_PASSWORD) $(MYSQL_DB) \
+	-e "TRUNCATE TABLE interactions;"
+ 
