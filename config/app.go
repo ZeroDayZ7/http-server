@@ -28,7 +28,7 @@ func NewFiberApp() *fiber.App {
 		EnableIPValidation:    true,
 		ServerHeader:          AppConfig.Server.ServerHeader,
 		AppName:               AppConfig.Server.AppName,
-		RequestMethods:        []string{"GET", "POST", "OPTIONS"},
+		RequestMethods:        []string{"GET", "POST", "OPTIONS", "HEAD"},
 		ErrorHandler:          server.ErrorHandler(),
 	})
 
