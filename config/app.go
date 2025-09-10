@@ -1,14 +1,13 @@
 package config
 
 import (
-	"time"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
+	"github.com/zerodayz7/http-server/internal/server"
 )
 
 func NewFiberApp() *fiber.App {
@@ -19,13 +18,18 @@ func NewFiberApp() *fiber.App {
 			"127.0.0.1",
 			"::1",
 		},
-		BodyLimit:             2 * 1024 * 1024,
-		ReadTimeout:           10 * time.Second,
-		WriteTimeout:          10 * time.Second,
-		IdleTimeout:           30 * time.Second,
+		BodyLimit:             AppConfig.Server.BodyLimitMB * 1024 * 1024,
+		ReadTimeout:           AppConfig.Server.ReadTimeout,
+		WriteTimeout:          AppConfig.Server.WriteTimeout,
+		IdleTimeout:           AppConfig.Server.IdleTimeout,
+		Prefork:               AppConfig.Server.Prefork,
+		CaseSensitive:         AppConfig.Server.CaseSensitive,
 		DisableStartupMessage: true,
 		EnableIPValidation:    true,
-		ServerHeader:          "HTTP-Server",
+		ServerHeader:          AppConfig.Server.ServerHeader,
+		AppName:               AppConfig.Server.AppName,
+		RequestMethods:        []string{"GET", "POST", "OPTIONS"},
+		ErrorHandler:          server.ErrorHandler(),
 	})
 
 	app.Use(requestid.New())
