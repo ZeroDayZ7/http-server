@@ -9,10 +9,9 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
-	"github.com/gofiber/fiber/v2/middleware/session"
 )
 
-func NewFiberApp(sessionStore *session.Store) *fiber.App {
+func NewFiberApp() *fiber.App {
 	app := fiber.New(fiber.Config{
 		ProxyHeader:             fiber.HeaderXForwardedFor,
 		EnableTrustedProxyCheck: true,
@@ -26,7 +25,7 @@ func NewFiberApp(sessionStore *session.Store) *fiber.App {
 		IdleTimeout:           30 * time.Second,
 		DisableStartupMessage: true,
 		EnableIPValidation:    true,
-		ServerHeader:          "HTTP-Server/ZeroDayZ7",
+		ServerHeader:          "HTTP-Server",
 	})
 
 	app.Use(requestid.New())
@@ -36,16 +35,6 @@ func NewFiberApp(sessionStore *session.Store) *fiber.App {
 	app.Use(cors.New(CorsConfig()))
 	app.Use(NewLimiter("global"))
 	app.Use(compress.New(CompressConfig()))
-
-	// global session
-	app.Use(func(c *fiber.Ctx) error {
-		sess, err := sessionStore.Get(c)
-		if err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": "Failed to get session"})
-		}
-		c.Locals("session", sess)
-		return c.Next()
-	})
 
 	return app
 }
