@@ -9,6 +9,25 @@ migrate -path database/migrations -database "postgres://postgres:password@localh
 migrate -path database/migrations -database "postgres://postgres:password@localhost:5432/authdb?sslmode=disable" -verbose down 1
 ```
 
+# Sprawdź stan migracji
+
+```
+migrate -path database/migrations -database "mysql://root:admin@tcp(127.0.0.1:3306)/portfolio_db?parseTime=true" version
+```
+
+# Wymuszenie wersji (bez zmian w bazie)
+
+```bash
+migrate -path database/migrations -database "mysql://root:admin@tcp(127.0.0.1:3306)/portfolio_db?parseTime=true" force 2
+```
+
+# Alternatywa – pełne resetowanie (dev)
+```bash
+migrate -path database/migrations -database "mysql://root:admin@tcp(127.0.0.1:3306)/portfolio_db?parseTime=true" drop
+migrate -path database/migrations -database "mysql://root:admin@tcp(127.0.0.1:3306)/portfolio_db?parseTime=true" up
+```
+
+
 ## make
 
 ```bash

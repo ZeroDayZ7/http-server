@@ -16,7 +16,6 @@ func SetupFallbackHandlers(app *fiber.App) {
 		logger.GetLogger().Warn("404 - not found", zap.String("path", c.Path()), zap.String("method", c.Method()))
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Not found",
-			"path":  c.Path(),
 		})
 	})
 }

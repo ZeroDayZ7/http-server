@@ -1,7 +1,6 @@
 package server
 
 import (
-	"database/sql"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,7 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func SetupGracefulShutdown(app *fiber.App, sqlDB *sql.DB, timeout time.Duration) {
+func SetupGracefulShutdown(app *fiber.App, closeDB func(), timeout time.Duration) {
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
@@ -24,8 +23,8 @@ func SetupGracefulShutdown(app *fiber.App, sqlDB *sql.DB, timeout time.Duration)
 			logger.GetLogger().Error("Server shutdown failed", zap.Error(err))
 		}
 
-		if sqlDB != nil {
-			sqlDB.Close()
+		if closeDB != nil {
+			closeDB()
 		}
 
 		logger.GetLogger().Info("Server stopped")

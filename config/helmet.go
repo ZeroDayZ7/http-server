@@ -10,7 +10,7 @@ func HelmetConfig() helmet.Config {
 		HSTSMaxAge:                31536000,
 		HSTSExcludeSubdomains:     false,
 		HSTSPreloadEnabled:        false,
-		ContentSecurityPolicy:     "default-src 'self'; script-src 'self'; object-src 'none';",
+		ContentSecurityPolicy:     "default-src 'none'; script-src 'none'; object-src 'none'; frame-ancestors 'none'; base-uri 'none';",
 		CSPReportOnly:             false,
 		ReferrerPolicy:            "no-referrer",
 		PermissionPolicy:          "",
