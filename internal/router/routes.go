@@ -12,5 +12,6 @@ func SetupRoutes(
 ) {
 	SetupHealthRoutes(app)
 	SetupStatsRoutes(app, interactionHandler)
+
 	SetupFallbackHandlers(app)
 }

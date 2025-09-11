@@ -5,6 +5,7 @@ import (
 
 	"github.com/zerodayz7/http-server/config"
 	"github.com/zerodayz7/http-server/internal/handler"
+	blackjackHandler "github.com/zerodayz7/http-server/internal/handler/blackjack"
 	mysqlrepo "github.com/zerodayz7/http-server/internal/repository/mysql"
 	"github.com/zerodayz7/http-server/internal/router"
 	"github.com/zerodayz7/http-server/internal/server"
@@ -30,10 +31,13 @@ func main() {
 	interactionSvc := service.NewInteractionService(interactionRepo)
 	interactionHandler := handler.NewInteractionHandler(interactionSvc)
 
+	gameHandler := blackjackHandler.NewGameHandler()
+
 	// Fiber
 	app := config.NewFiberApp()
 
 	// routes
+	router.SetupGameRoutes(app, gameHandler)
 	router.SetupRoutes(app, interactionHandler)
 
 	// graceful shutdown
