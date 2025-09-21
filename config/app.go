@@ -8,9 +8,12 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/zerodayz7/http-server/internal/server"
+	"github.com/zerodayz7/http-server/internal/shared/logger"
+	"go.uber.org/zap"
 )
 
 func NewFiberApp() *fiber.App {
+	log := logger.GetLogger()
 	app := fiber.New(fiber.Config{
 		ProxyHeader:             fiber.HeaderXForwardedFor,
 		EnableTrustedProxyCheck: true,
@@ -33,7 +36,21 @@ func NewFiberApp() *fiber.App {
 	})
 
 	app.Use(requestid.New())
-	app.Use(recover.New())
+	app.Use(recover.New(recover.Config{
+		EnableStackTrace: true,
+		StackTraceHandler: func(c *fiber.Ctx, err interface{}) {
+			log.Error("Panic recovered in handler",
+				zap.Any("error", err),
+				zap.String("path", c.Path()),
+			)
+
+			// opcjonalnie: zwróć klientowi 500
+			c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"error":   "Internal server error",
+			})
+		},
+	}))
 	app.Use(FiberLoggerMiddleware())
 	app.Use(helmet.New(HelmetConfig()))
 	app.Use(cors.New(CorsConfig()))

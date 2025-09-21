@@ -28,6 +28,7 @@ func NewLimiter(group string) fiber.Handler {
 	return limiter.New(limiter.Config{
 		Max:        cfg.Max,
 		Expiration: cfg.Window,
+		Storage:    Storage(),
 		KeyGenerator: func(c *fiber.Ctx) string {
 			return c.IP()
 		},
