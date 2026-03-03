@@ -1,0 +1,11 @@
+version: "2"
+sql:
+  - schema: "internal/db/schema" # Tutaj wrzuć pliki .sql z tabelami (CREATE TABLE)
+    queries: "internal/db/queries" # Tutaj wrzuć pliki .sql z zapytaniami (SELECT/INSERT)
+    engine: "mysql"
+    gen:
+      go:
+        package: "db" # Nazwa pakietu wygenerowanego kodu
+        out: "internal/db" # Folder, w którym powstanie kod Go
+        emit_json_tags: true # Doda tagi json:`...` do struktur
+        emit_interface: true # Wygeneruje interfejs (ułatwia testowanie/Wire)

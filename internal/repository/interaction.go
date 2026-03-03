@@ -1,14 +1,13 @@
 package repository
 
-import "time"
+import (
+	"context"
+)
 
 type InteractionRepository interface {
-	// Add dodaje nową interakcję: visit, like, dislike, comment itd.
-	Add(ip string, userID *uint, typ string, value int, content *string, at time.Time) error
+	// Increment zwiększa licznik dla danego typu (like, dislike, visit)
+	Increment(ctx context.Context, typ string) error
 
-	// Count zwraca liczbę wszystkich interakcji danego typu
-	Count(typ string) (int, error)
-
-	// CountByIP zwraca liczbę interakcji danego typu dla konkretnego IP
-	CountByIP(ip, typ string) (int, error)
+	// GetCount pobiera aktualny stan licznika dla danego typu
+	GetCount(ctx context.Context, typ string) (int, error)
 }

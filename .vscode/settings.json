@@ -1,4 +1,15 @@
 {
+  "files.exclude": {
+    "**/go.sum": true,
+    "**/.gitattributes": true,
+    "**/LICENSE": true
+  },
+
+  "search.exclude": {
+    "**/go.sum": true,
+    "**/.gitattributes": true,
+    "**/LICENSE": true
+  },
   "go.formatTool": "gofmt",
   "editor.formatOnSave": true
 }

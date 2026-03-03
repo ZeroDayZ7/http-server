@@ -16,24 +16,24 @@ func NewInteractionHandler(svc *service.InteractionService) *InteractionHandler 
 	}
 }
 
-// getUserIPAndID extracts IP and optional userID from context
-func (h *InteractionHandler) getUserIPAndID(c *fiber.Ctx) (string, *uint) {
-	ip := c.IP()
-	var userID *uint
-	if uid := c.Locals("userID"); uid != nil {
-		id := uid.(uint)
-		userID = &id
+func (h *InteractionHandler) getFingerprint(c *fiber.Ctx) string {
+	fp := c.Get("X-Fingerprint")
+	if fp == "" {
+		return c.IP()
 	}
-	return ip, userID
+	return fp
 }
 
-// Public Endpoints
 func (h *InteractionHandler) RecordVisit(c *fiber.Ctx) error {
-	ip, userID := h.getUserIPAndID(c)
-	resp, err := h.service.HandleInteraction(ip, userID, service.TypeVisit, service.VisitCooldown, true)
+	fp := h.getFingerprint(c)
+
+	resp, err := h.service.HandleInteraction(c.Context(), fp, service.TypeVisit)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "nie udało się przetworzyć interakcji"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "nie udało się zarejestrować wizyty",
+		})
 	}
+
 	return c.JSON(resp)
 }
 
@@ -42,23 +42,31 @@ func (h *InteractionHandler) RecordLike(c *fiber.Ctx) error {
 	if val == nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "nieprawidłowe dane"})
 	}
+
 	body, ok := val.(validator.InteractionRequest)
 	if !ok {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "nieprawidłowy format danych"})
 	}
-	ip, userID := h.getUserIPAndID(c)
-	resp, err := h.service.HandleInteraction(ip, userID, body.Type, service.LikeCooldown, true)
+
+	fp := h.getFingerprint(c)
+
+	resp, err := h.service.HandleInteraction(c.Context(), fp, body.Type)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "nie udało się przetworzyć interakcji"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "nie udało się przetworzyć polubienia",
+		})
 	}
+
 	return c.JSON(resp)
 }
 
 func (h *InteractionHandler) GetStats(c *fiber.Ctx) error {
-	ip, userID := h.getUserIPAndID(c)
-	resp, err := h.service.HandleInteraction(ip, userID, service.TypeVisit, 0, false) // No record, no cooldown
+	resp, err := h.service.GetStats(c.Context())
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "nie udało się pobrać statystyk"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "nie udało się pobrać statystyk",
+		})
 	}
+
 	return c.JSON(resp)
 }

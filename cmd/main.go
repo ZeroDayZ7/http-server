@@ -4,45 +4,57 @@ import (
 	"os"
 
 	"github.com/zerodayz7/http-server/config"
-	"github.com/zerodayz7/http-server/internal/handler"
-	blackjackHandler "github.com/zerodayz7/http-server/internal/handler/blackjack"
-	mysqlrepo "github.com/zerodayz7/http-server/internal/repository/mysql"
+	"github.com/zerodayz7/http-server/internal/di"
 	"github.com/zerodayz7/http-server/internal/router"
 	"github.com/zerodayz7/http-server/internal/server"
-	"github.com/zerodayz7/http-server/internal/service"
 	"github.com/zerodayz7/http-server/internal/shared/logger"
 	"go.uber.org/zap"
 )
 
 func main() {
-	_, _ = logger.InitLogger(os.Getenv("ENV"))
+	log, _ := logger.InitLogger(os.Getenv("ENV"))
 
-	// config
+	// Load config
 	if err := config.LoadConfigGlobal(); err != nil {
-		logger.GetLogger().Fatal("Config load failed", zap.Error(err))
+		log.Fatal("Config load failed", zap.Error(err))
 	}
 
-	// DB
-	conn, closeDB := config.MustInitDB()
+	// Init DB (GORM)
+	db, closeDB := config.MustInitDB()
 	defer closeDB()
 
-	// Repos, service, handlers
-	interactionRepo := mysqlrepo.NewInteractionRepository(conn)
-	interactionSvc := service.NewInteractionService(interactionRepo)
-	interactionHandler := handler.NewInteractionHandler(interactionSvc)
+	// Init Redis
+	redisClient, closeRedis := config.MustInitRedis()
+	defer closeRedis()
 
-	gameHandler := blackjackHandler.NewGameHandler()
+	// Dependency Injection (Wire)
+	interactionHandler, err := di.InitializeInteractionModule(db, redisClient)
+	if err != nil {
+		log.Fatal("DI init failed", zap.Error(err))
+	}
 
-	// Fiber
+	// Fiber app
 	app := config.NewFiberApp()
 
-	// routes
-	router.SetupGameRoutes(app, gameHandler)
+	// Routes
 	router.SetupRoutes(app, interactionHandler)
 
-	// graceful shutdown
-	server.SetupGracefulShutdown(app, closeDB, config.AppConfig.Shutdown)
+	// Graceful shutdown
+	server.SetupGracefulShutdown(
+		app,
+		func() {
+			closeDB()
+			closeRedis()
+		},
+		config.AppConfig.Shutdown,
+	)
 
-	logger.GetLogger().Info("Listening", zap.String("port", config.AppConfig.Server.Port))
-	app.Listen(":" + config.AppConfig.Server.Port)
+	log.Info(
+		"Listening",
+		zap.String("port", config.AppConfig.Server.Port),
+	)
+
+	if err := app.Listen(":" + config.AppConfig.Server.Port); err != nil {
+		log.Fatal("Server failed", zap.Error(err))
+	}
 }

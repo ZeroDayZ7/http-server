@@ -26,10 +26,21 @@ type ServerConfig struct {
 }
 
 type DBConfig struct {
-	DSN             string
+	User            string
+	Password        string
+	Host            string
+	Port            string
+	DBName          string
 	MaxOpenConns    int
 	MaxIdleConns    int
 	ConnMaxLifetime time.Duration
+}
+
+type RedisConfig struct {
+	Host     string
+	Port     string
+	Password string
+	DB       int
 }
 
 type RateLimitConfig struct {
@@ -40,6 +51,7 @@ type RateLimitConfig struct {
 type Config struct {
 	Server     ServerConfig
 	Database   DBConfig
+	Redis      RedisConfig
 	RateLimit  RateLimitConfig
 	CORSAllow  string
 	Shutdown   time.Duration
@@ -98,10 +110,21 @@ func LoadConfigGlobal() error {
 			WriteTimeout:  time.Duration(viper.GetInt("WRITE_TIMEOUT_SEC")) * time.Second,
 		},
 		Database: DBConfig{
-			DSN:             viper.GetString("MYSQL_DSN"),
+			User:     viper.GetString("MYSQL_USER"),
+			Password: viper.GetString("MYSQL_PASSWORD"),
+			Host:     viper.GetString("MYSQL_HOST"),
+			Port:     viper.GetString("MYSQL_PORT"),
+			DBName:   viper.GetString("MYSQL_DATABASE"),
+
 			MaxOpenConns:    viper.GetInt("DB_MAX_OPEN_CONNS"),
 			MaxIdleConns:    viper.GetInt("DB_MAX_IDLE_CONNS"),
 			ConnMaxLifetime: time.Duration(viper.GetInt("DB_CONN_MAX_LIFETIME_MIN")) * time.Minute,
+		},
+		Redis: RedisConfig{
+			Host:     viper.GetString("REDIS_HOST"),
+			Port:     viper.GetString("REDIS_PORT"),
+			Password: viper.GetString("REDIS_PASSWORD"),
+			DB:       viper.GetInt("REDIS_DB"),
 		},
 		RateLimit: RateLimitConfig{
 			Max:    viper.GetInt("RATE_LIMIT_MAX"),

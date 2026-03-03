@@ -1,36 +1,44 @@
 package config
 
 import (
+	"database/sql"
 	"fmt"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/zerodayz7/http-server/internal/shared/logger"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
 )
 
-// MustInitDB inicjalizuje bazę i panicuje przy błędzie, zwraca *gorm.DB i funkcję do defer
-func MustInitDB() (*gorm.DB, func()) {
+func MustInitDB() (*sql.DB, func()) {
 	log := logger.GetLogger()
 	cfg := AppConfig.Database
 
-	db, err := gorm.Open(mysql.Open(cfg.DSN), &gorm.Config{})
+	dsn := fmt.Sprintf(
+		"%s:%s@tcp(%s:%s)/%s?parseTime=true&multiStatements=true",
+		cfg.User,
+		cfg.Password,
+		cfg.Host,
+		cfg.Port,
+		cfg.DBName,
+	)
+
+	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		panic(fmt.Errorf("failed to connect to database: %w", err))
+		panic(err)
 	}
 
-	sqlDB, err := db.DB()
-	if err != nil {
-		panic(fmt.Errorf("failed to get database instance: %w", err))
+	db.SetMaxOpenConns(cfg.MaxOpenConns)
+	db.SetMaxIdleConns(cfg.MaxIdleConns)
+	db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
+
+	if err := db.Ping(); err != nil {
+		panic(err)
 	}
 
-	sqlDB.SetMaxOpenConns(cfg.MaxOpenConns)
-	sqlDB.SetMaxIdleConns(cfg.MaxIdleConns)
-	sqlDB.SetConnMaxLifetime(cfg.ConnMaxLifetime)
+	RunMigrations(db)
 
-	if err := sqlDB.Ping(); err != nil {
-		panic(fmt.Errorf("database ping failed: %w", err))
+	log.Info("MySQL connected via database/sql")
+
+	return db, func() {
+		_ = db.Close()
 	}
-
-	log.Info("Successfully connected to MySQL")
-	return db, func() { sqlDB.Close() }
 }
