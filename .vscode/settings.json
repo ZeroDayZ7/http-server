@@ -2,12 +2,14 @@
   "files.exclude": {
     "**/go.sum": true,
     "**/.gitattributes": true,
+    "**/logs": true,
     "**/LICENSE": true
   },
 
   "search.exclude": {
     "**/go.sum": true,
     "**/.gitattributes": true,
+    "**/logs": true,
     "**/LICENSE": true
   },
   "go.formatTool": "gofmt",

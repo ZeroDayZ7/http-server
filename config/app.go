@@ -8,6 +8,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/zerodayz7/http-server/internal/server"
+	"github.com/zerodayz7/http-server/internal/shared"
 )
 
 func NewFiberApp() *fiber.App {
@@ -34,7 +35,8 @@ func NewFiberApp() *fiber.App {
 
 	app.Use(requestid.New())
 	app.Use(recover.New())
-	app.Use(FiberLoggerMiddleware())
+	// app.Use(FiberLoggerMiddleware())
+	app.Use(shared.RequestLoggerMiddleware())
 	app.Use(helmet.New(HelmetConfig()))
 	app.Use(cors.New(CorsConfig()))
 	app.Use(NewLimiter("global"))

@@ -7,17 +7,17 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// Stałe dla typów i cooldownu
 const (
-	Cooldown    = 1 * time.Hour
+	// Zmieniamy na dłuższy cooldown lub stałą blokadę, skoro używamy fingerprintu
+	Cooldown    = 24 * time.Hour
 	TypeLike    = "like"
 	TypeDislike = "dislike"
 	TypeVisit   = "visit"
 )
 
-// InteractionRepository musi pasować do Twojego repozytorium w mysql!
 type InteractionRepository interface {
 	Increment(ctx context.Context, typ string) error
+	// Najlepiej pobrać wszystko jednym zapytaniem sqlc, ale trzymamy Twój interfejs:
 	GetCount(ctx context.Context, typ string) (int, error)
 }
 
@@ -33,60 +33,65 @@ func NewInteractionService(repo InteractionRepository, redis *redis.Client) *Int
 	}
 }
 
-// StatsResponse struktura odpowiedzi dla frontendu
 type StatsResponse struct {
-	Likes    int    `json:"likes"`
-	Dislikes int    `json:"dislikes"`
-	Visits   int    `json:"visits"`
-	Allowed  bool   `json:"allowed"`
-	Message  string `json:"message"`
+	Likes      int     `json:"likes"`
+	Dislikes   int     `json:"dislikes"`
+	Visits     int     `json:"visits"`
+	Allowed    bool    `json:"allowed"`
+	UserChoice *string `json:"userChoice"`
+	Message    string  `json:"message"`
 }
 
-// HandleInteraction główna logika: sprawdza Redis (fingerprint) i aktualizuje MySQL
+// HandleInteraction - obsługuje kliknięcie like/dislike
 func (s *InteractionService) HandleInteraction(ctx context.Context, fingerprint string, typ string) (*StatsResponse, error) {
-	// 1. Sprawdź blokadę w Redis (Fingerprint zastępuje IP - RODO SAFE)
-	// Klucz np. "limit:like:fp_123"
-	key := "limit:" + typ + ":" + fingerprint
+	// UJEDNOLICONY KLUCZ
+	limitKey := "user:interaction:" + fingerprint
 
-	exists, err := s.redis.Exists(ctx, key).Result()
-	if err == nil && exists > 0 {
-		// Użytkownik już klikał w ciągu ostatniej godziny
-		stats, _ := s.GetStats(ctx)
-		stats.Allowed = false
-		stats.Message = "Już zarejestrowano tę interakcję"
-		return stats, nil
+	if typ == TypeVisit {
+		_ = s.repo.Increment(ctx, typ)
+		return s.GetStats(ctx, fingerprint)
 	}
 
-	// 2. Jeśli to nie jest tylko pobieranie, zwiększ licznik w bazie
-	if typ == TypeLike || typ == TypeDislike || typ == TypeVisit {
-		if err := s.repo.Increment(ctx, typ); err != nil {
-			return nil, err
-		}
-		// 3. Ustaw blokadę w Redis na 1h
-		s.redis.Set(ctx, key, "true", Cooldown)
+	// 1. Sprawdź blokadę (czy klucz istnieje)
+	exists, _ := s.redis.Exists(ctx, limitKey).Result()
+	if exists > 0 {
+		return s.GetStats(ctx, fingerprint)
 	}
 
-	// 4. Pobierz aktualne statystyki
-	stats, err := s.GetStats(ctx)
-	if err != nil {
+	// 2. MySQL
+	if err := s.repo.Increment(ctx, typ); err != nil {
 		return nil, err
 	}
-	stats.Allowed = false // Właśnie kliknął, więc teraz blokujemy
-	stats.Message = "Interakcja zapisana"
 
-	return stats, nil
+	// 3. ZAPISZ WYBÓR (Wartość to 'like' lub 'dislike')
+	_ = s.redis.Set(ctx, limitKey, typ, Cooldown).Err()
+
+	return s.GetStats(ctx, fingerprint)
 }
 
-// GetStats pobiera same liczby z bazy
-func (s *InteractionService) GetStats(ctx context.Context) (*StatsResponse, error) {
+func (s *InteractionService) GetStats(ctx context.Context, fingerprint string) (*StatsResponse, error) {
 	likes, _ := s.repo.GetCount(ctx, TypeLike)
 	dislikes, _ := s.repo.GetCount(ctx, TypeDislike)
 	visits, _ := s.repo.GetCount(ctx, TypeVisit)
 
+	limitKey := "user:interaction:" + fingerprint
+	val, err := s.redis.Get(ctx, limitKey).Result()
+
+	allowed := true
+	var choicePtr *string
+
+	if err == nil && val != "" {
+		allowed = false
+		v := val
+		choicePtr = &v
+	}
+
 	return &StatsResponse{
-		Likes:    likes,
-		Dislikes: dislikes,
-		Visits:   visits,
-		Allowed:  true,
+		Likes:      likes,
+		Dislikes:   dislikes,
+		Visits:     visits,
+		Allowed:    allowed,
+		UserChoice: choicePtr,
+		Message:    "Statystyki pobrane",
 	}, nil
 }
