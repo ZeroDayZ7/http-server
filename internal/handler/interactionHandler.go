@@ -1,77 +1,120 @@
 package handler
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+
 	"github.com/gofiber/fiber/v2"
+	"github.com/zerodayz7/http-server/internal/errors"
 	"github.com/zerodayz7/http-server/internal/service"
 	"github.com/zerodayz7/http-server/internal/validator"
 )
 
 type InteractionHandler struct {
 	service *service.InteractionService
+	salt    string
 }
 
-func NewInteractionHandler(svc *service.InteractionService) *InteractionHandler {
+func NewInteractionHandler(svc *service.InteractionService, salt string) *InteractionHandler {
 	return &InteractionHandler{
 		service: svc,
+		salt:    salt,
 	}
+}
+
+func HandleServiceError(c *fiber.Ctx, err error) error {
+	if appErr, ok := err.(*errors.AppError); ok {
+		return errors.SendAppError(c, appErr)
+	}
+
+	return errors.SendAppError(c, errors.ErrInternal)
+}
+
+func GetValidated[T any](c *fiber.Ctx, key string) (T, error) {
+	var zero T
+
+	v, ok := c.Locals(key).(T)
+	if !ok {
+		return zero, errors.ErrInvalidRequest
+	}
+
+	return v, nil
 }
 
 func (h *InteractionHandler) getFingerprint(c *fiber.Ctx) string {
-	fp := c.Get("X-Fingerprint")
-	if fp == "" {
-		return c.IP()
+	ip := c.IP()
+	ua := c.Get("User-Agent")
+	lang := c.Get("Accept-Language")
+
+	raw := ip + "|" + ua + "|" + lang + "|" + h.salt
+
+	hash := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(hash[:])
+}
+
+func (h *InteractionHandler) InitializeSession(c *fiber.Ctx) error {
+	fp := h.getFingerprint(c)
+
+	resp, err := h.service.ProcessInitialVisit(c.Context(), fp)
+	if err != nil {
+		return HandleServiceError(c, err)
 	}
-	return fp
+
+	return c.JSON(resp)
 }
 
 func (h *InteractionHandler) RecordVisit(c *fiber.Ctx) error {
-	// Pobierz fingerprint z body lub query (zależnie jak wysyłasz wizytę)
-	// Jeśli wizyta to POST przy wejściu:
-	var body validator.InteractionRequest
-	if err := c.BodyParser(&body); err != nil {
-		// Fallback do IP jeśli body puste, ale lepiej wysłać FP z frontu
-		fp := c.Query("fp")
-		if fp == "" {
-			fp = c.IP()
-		}
-		resp, _ := h.service.HandleInteraction(c.Context(), fp, service.TypeVisit)
-		return c.JSON(resp)
+
+	body, _ := GetValidated[validator.InteractionRequest](c, "validatedBody")
+
+	fp := body.Fingerprint
+	if fp == "" {
+		fp = h.getFingerprint(c)
 	}
 
-	resp, err := h.service.HandleInteraction(c.Context(), body.Fingerprint, service.TypeVisit)
+	resp, err := h.service.HandleInteraction(
+		c.Context(),
+		fp,
+		service.TypeVisit,
+	)
+
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		return HandleServiceError(c, err)
 	}
+
 	return c.JSON(resp)
 }
 
 func (h *InteractionHandler) GetStats(c *fiber.Ctx) error {
-	// Skoro mamy middleware ValidateBody[validator.FingerprintRequest],
-	// to body jest już sparsowane i bezpieczne.
-	var body validator.FingerprintRequest
-	if err := c.BodyParser(&body); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "invalid body"})
+
+	query, err := GetValidated[validator.FingerprintRequest](c, "validatedQuery")
+	if err != nil {
+		return HandleServiceError(c, err)
 	}
 
-	resp, err := h.service.GetStats(c.Context(), body.Fingerprint)
+	resp, err := h.service.GetStats(
+		c.Context(),
+		query.Fingerprint,
+	)
+
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		return HandleServiceError(c, err)
 	}
+
 	return c.JSON(resp)
 }
 
 func (h *InteractionHandler) RecordLike(c *fiber.Ctx) error {
-	// Body z frontu: { type: 'like', fingerprint: 'HASH' }
-	var body validator.InteractionRequest
-	if err := c.BodyParser(&body); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "invalid body"})
-	}
-
-	// Używamy fingerprintu z body zamiast IP!
-	resp, err := h.service.HandleInteraction(c.Context(), body.Fingerprint, body.Type)
+	body, err := GetValidated[validator.InteractionRequest](c, "validatedBody")
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		return HandleServiceError(c, err)
 	}
 
+	fp := h.getFingerprint(c)
+
+	resp, err := h.service.HandleInteraction(c.Context(), fp, body.Type)
+	if err != nil {
+		return HandleServiceError(c, err)
+	}
 	return c.JSON(resp)
 }

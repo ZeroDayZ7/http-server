@@ -13,7 +13,7 @@
         "APP_ENV": "dev"
       },
       "envFile": "${workspaceFolder}/.env",
-      "buildFlags": "-tags=wireinject",
+      "buildFlags": "",
       "cwd": "${workspaceFolder}",
       "showLog": false,
       "output": "${workspaceFolder}/bin/server_debug.exe"

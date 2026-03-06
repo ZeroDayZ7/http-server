@@ -18,6 +18,10 @@ func isSensitive(key string) bool {
 
 func RequestLoggerMiddleware() fiber.Handler {
 	return func(c *fiber.Ctx) error {
+
+		if c.Method() == fiber.MethodOptions {
+			return c.Next()
+		}
 		start := time.Now()
 		log := logger.GetLogger()
 

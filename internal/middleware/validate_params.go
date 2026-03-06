@@ -2,23 +2,28 @@ package middleware
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/zerodayz7/http-server/internal/errors"
 )
 
 func ValidateParams[T any]() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		params := new(T)
 		if err := c.ParamsParser(params); err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "INVALID_PARAMS")
+			return errors.SendAppError(c, errors.ErrInvalidRequest)
 		}
 
 		if errs := ValidateStruct(params); len(errs) > 0 {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"code":   "VALIDATION_FAILED",
-				"errors": errs,
-			})
+			meta := make(map[string]any)
+			for k, v := range errs {
+				meta[k] = v
+			}
+
+			appErr := errors.ErrValidationFailed
+			appErr.Meta = meta
+			return errors.SendAppError(c, appErr)
 		}
 
-		c.Locals("validatedParams", params)
+		c.Locals("validatedParams", *params)
 		return c.Next()
 	}
 }

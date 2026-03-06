@@ -13,14 +13,18 @@ func SetupStatsRoutes(app *fiber.App, h *handler.InteractionHandler) {
 	stats := app.Group("/stats")
 	stats.Use(config.NewLimiter("visits"))
 
-	stats.Post("/interactions/get",
-		middleware.ValidateBody[validator.FingerprintRequest](),
+	stats.Get("/interactions",
+		middleware.ValidateQuery[validator.FingerprintRequest](),
 		h.GetStats,
 	)
 
 	stats.Post("/interactions",
 		middleware.ValidateBody[validator.InteractionRequest](),
 		h.RecordLike,
+	)
+
+	stats.Post("/init",
+		h.InitializeSession,
 	)
 
 }

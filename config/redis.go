@@ -7,7 +7,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/zerodayz7/http-server/internal/shared/logger"
-	"go.uber.org/zap" // Dodaj ten import
+	"go.uber.org/zap"
 )
 
 func MustInitRedis() (*redis.Client, func()) {

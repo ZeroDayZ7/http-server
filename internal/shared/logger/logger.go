@@ -53,7 +53,8 @@ func InitLogger(env string) (*Logger, error) {
 
 		core := zapcore.NewTee(consoleCore, fileCore)
 
-		zapLogger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
+		// zapLogger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
+		zapLogger := zap.New(core, zap.AddStacktrace(zapcore.ErrorLevel))
 		instance = &Logger{zapLogger}
 	})
 	return instance, err

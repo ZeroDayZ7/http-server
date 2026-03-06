@@ -2,14 +2,17 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	rediskeys "github.com/zerodayz7/http-server/internal/redis"
 )
 
 const (
-	// Zmieniamy na dłuższy cooldown lub stałą blokadę, skoro używamy fingerprintu
-	Cooldown    = 24 * time.Hour
+	Cooldown       = 24 * time.Hour
+	GlobalStatsTTL = 2 * time.Minute
+
 	TypeLike    = "like"
 	TypeDislike = "dislike"
 	TypeVisit   = "visit"
@@ -17,19 +20,27 @@ const (
 
 type InteractionRepository interface {
 	Increment(ctx context.Context, typ string) error
-	// Najlepiej pobrać wszystko jednym zapytaniem sqlc, ale trzymamy Twój interfejs:
 	GetCount(ctx context.Context, typ string) (int, error)
 }
 
 type InteractionService struct {
-	repo  InteractionRepository
-	redis *redis.Client
+	repo      InteractionRepository
+	redis     *redis.Client
+	keys      rediskeys.RedisKeyBuilder
+	publisher rediskeys.StreamPublisher
 }
 
-func NewInteractionService(repo InteractionRepository, redis *redis.Client) *InteractionService {
+func NewInteractionService(
+	repo InteractionRepository,
+	redisClient *redis.Client,
+	publisher rediskeys.StreamPublisher,
+) *InteractionService {
+
 	return &InteractionService{
-		repo:  repo,
-		redis: redis,
+		repo:      repo,
+		redis:     redisClient,
+		keys:      rediskeys.RedisKeyBuilder{},
+		publisher: publisher,
 	}
 }
 
@@ -42,48 +53,88 @@ type StatsResponse struct {
 	Message    string  `json:"message"`
 }
 
-// HandleInteraction - obsługuje kliknięcie like/dislike
-func (s *InteractionService) HandleInteraction(ctx context.Context, fingerprint string, typ string) (*StatsResponse, error) {
-	// UJEDNOLICONY KLUCZ
-	limitKey := "user:interaction:" + fingerprint
+func (s *InteractionService) ProcessInitialVisit(ctx context.Context, fp string) (*StatsResponse, error) {
 
-	if typ == TypeVisit {
-		_ = s.repo.Increment(ctx, typ)
-		return s.GetStats(ctx, fingerprint)
+	limitKey := s.keys.VisitCooldown(fp)
+	statsKey := s.keys.GlobalStats(TypeVisit)
+
+	result, err := rediskeys.DefaultScripts.Visit.Run(
+		ctx,
+		s.redis,
+		[]string{
+			limitKey,
+			statsKey,
+		},
+		Cooldown.Milliseconds(),
+	).Int()
+
+	if err == nil && result == 1 {
+		_ = s.publisher.PublishInteraction(ctx, TypeVisit, fp)
 	}
 
-	// 1. Sprawdź blokadę (czy klucz istnieje)
-	exists, _ := s.redis.Exists(ctx, limitKey).Result()
-	if exists > 0 {
-		return s.GetStats(ctx, fingerprint)
-	}
-
-	// 2. MySQL
-	if err := s.repo.Increment(ctx, typ); err != nil {
-		return nil, err
-	}
-
-	// 3. ZAPISZ WYBÓR (Wartość to 'like' lub 'dislike')
-	_ = s.redis.Set(ctx, limitKey, typ, Cooldown).Err()
-
-	return s.GetStats(ctx, fingerprint)
+	return s.GetStats(ctx, fp)
 }
 
-func (s *InteractionService) GetStats(ctx context.Context, fingerprint string) (*StatsResponse, error) {
-	likes, _ := s.repo.GetCount(ctx, TypeLike)
-	dislikes, _ := s.repo.GetCount(ctx, TypeDislike)
-	visits, _ := s.repo.GetCount(ctx, TypeVisit)
+func (s *InteractionService) HandleInteraction(ctx context.Context, fp string, typ string) (*StatsResponse, error) {
 
-	limitKey := "user:interaction:" + fingerprint
-	val, err := s.redis.Get(ctx, limitKey).Result()
+	if fp == "" || (typ != TypeLike && typ != TypeDislike) {
+		return nil, errors.New("invalid request")
+	}
 
-	allowed := true
+	cooldownKey := s.keys.UserInteraction(fp)
+	statsKey := s.keys.GlobalStats(typ)
+
+	result, err := rediskeys.DefaultScripts.Interaction.Run(
+		ctx,
+		s.redis,
+		[]string{
+			cooldownKey,
+			statsKey,
+		},
+		Cooldown.Milliseconds(),
+	).Int()
+
+	if err == nil && result == 1 {
+		_ = s.publisher.PublishInteraction(ctx, typ, fp)
+	}
+
+	return s.GetStats(ctx, fp)
+}
+
+func (s *InteractionService) getGlobalCount(ctx context.Context, typ string) int {
+
+	cacheKey := s.keys.GlobalStats(typ)
+
+	val, err := s.redis.Get(ctx, cacheKey).Int()
+	if err == nil {
+		return val
+	}
+
+	count, err := s.repo.GetCount(ctx, typ)
+	if err != nil {
+		return 0
+	}
+
+	_ = s.redis.Set(ctx, cacheKey, count, GlobalStatsTTL).Err()
+
+	return count
+}
+
+func (s *InteractionService) GetStats(ctx context.Context, fp string) (*StatsResponse, error) {
+
+	likes := s.getGlobalCount(ctx, TypeLike)
+	dislikes := s.getGlobalCount(ctx, TypeDislike)
+	visits := s.getGlobalCount(ctx, TypeVisit)
+
+	val, _ := s.redis.Get(ctx, s.keys.UserInteraction(fp)).Result()
+
 	var choicePtr *string
+	allowed := true
 
-	if err == nil && val != "" {
-		allowed = false
+	if val != "" {
 		v := val
 		choicePtr = &v
+		allowed = false
 	}
 
 	return &StatsResponse{
@@ -92,6 +143,6 @@ func (s *InteractionService) GetStats(ctx context.Context, fingerprint string) (
 		Visits:     visits,
 		Allowed:    allowed,
 		UserChoice: choicePtr,
-		Message:    "Statystyki pobrane",
+		Message:    "Success",
 	}, nil
 }

@@ -6,11 +6,11 @@ import (
 
 type InteractionRequest struct {
 	Type        string `json:"type" validate:"required,oneof=like dislike visit"`
-	Fingerprint string `json:"fingerprint" validate:"required"`
+	Fingerprint string `json:"fingerprint"`
 }
 
 type FingerprintRequest struct {
-	Fingerprint string `json:"fingerprint" validate:"required"`
+	Fingerprint string `json:"fingerprint"`
 }
 
 func ValidateStruct(s any) map[string]string {
