@@ -4,7 +4,11 @@ local ttl = ARGV[1]
 
 if redis.call("EXISTS", cooldownKey) == 0 then
     redis.call("SET", cooldownKey, "1", "PX", ttl)
-    redis.call("INCR", statsKey)
+    
+    if redis.call("EXISTS", statsKey) == 1 then
+        redis.call("INCR", statsKey)
+    end
+    
     return 1
 end
 

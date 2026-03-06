@@ -102,14 +102,15 @@ func (s *InteractionService) HandleInteraction(ctx context.Context, fp string, t
 }
 
 func (s *InteractionService) getGlobalCount(ctx context.Context, typ string) int {
-
 	cacheKey := s.keys.GlobalStats(typ)
 
+	// 1. cache
 	val, err := s.redis.Get(ctx, cacheKey).Int()
 	if err == nil {
 		return val
 	}
 
+	// 2. Cache miss
 	count, err := s.repo.GetCount(ctx, typ)
 	if err != nil {
 		return 0
