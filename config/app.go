@@ -37,8 +37,8 @@ func NewFiberApp() *fiber.App {
 	app.Use(recover.New())
 	// app.Use(FiberLoggerMiddleware())
 	app.Use(shared.RequestLoggerMiddleware())
-	app.Use(helmet.New(HelmetConfig()))
 	app.Use(cors.New(CorsConfig()))
+	app.Use(helmet.New(HelmetConfig()))
 	app.Use(NewLimiter("global"))
 	app.Use(compress.New(CompressConfig()))
 

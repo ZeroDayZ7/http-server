@@ -5,11 +5,12 @@ import (
 )
 
 func CorsConfig() cors.Config {
-	allowOrigins := AppConfig.CORSAllow
 	return cors.Config{
-		AllowOrigins:     allowOrigins,
-		AllowMethods:     "GET,POST",
-		AllowHeaders:     "Origin, Content-Type, Accept",
-		AllowCredentials: true,
+		AllowOrigins:     AppConfig.CORSAllow,
+		AllowMethods:     AppConfig.CORSMethods,
+		AllowHeaders:     AppConfig.CORSHeaders,
+		AllowCredentials: AppConfig.CORSCredentials,
+		ExposeHeaders:    "Content-Length",
+		MaxAge:           86400,
 	}
 }

@@ -54,6 +54,9 @@ type Config struct {
 	Redis           RedisConfig
 	RateLimit       RateLimitConfig
 	CORSAllow       string
+	CORSMethods     string
+	CORSHeaders     string
+	CORSCredentials bool
 	Shutdown        time.Duration
 	SessionTTL      time.Duration
 	FingerprintSalt string
@@ -85,6 +88,9 @@ func LoadConfigGlobal() error {
 	viper.SetDefault("RATE_LIMIT_MAX", 100)
 	viper.SetDefault("RATE_LIMIT_WINDOW_SEC", 60)
 	viper.SetDefault("CORS_ALLOW_ORIGINS", "*")
+	viper.SetDefault("CORS_ALLOW_METHODS", "GET,POST,OPTIONS,HEAD")
+	viper.SetDefault("CORS_ALLOW_HEADERS", "Origin, Content-Type, Accept, Authorization")
+	viper.SetDefault("CORS_ALLOW_CREDENTIALS", false)
 	viper.SetDefault("SHUTDOWN_TIMEOUT_SEC", 5)
 	viper.SetDefault("SESSION_TTL_MINUTES", 1440)
 	viper.SetDefault("FINGERPRINT_SALT", "default-secret-salt")
@@ -133,11 +139,15 @@ func LoadConfigGlobal() error {
 			Window: time.Duration(viper.GetInt("RATE_LIMIT_WINDOW_SEC")) * time.Second,
 		},
 		CORSAllow:       viper.GetString("CORS_ALLOW_ORIGINS"),
+		CORSMethods:     viper.GetString("CORS_ALLOW_METHODS"),
+		CORSHeaders:     viper.GetString("CORS_ALLOW_HEADERS"),
+		CORSCredentials: viper.GetBool("CORS_ALLOW_CREDENTIALS"),
 		Shutdown:        time.Duration(viper.GetInt("SHUTDOWN_TIMEOUT_SEC")) * time.Second,
 		SessionTTL:      time.Duration(viper.GetInt("SESSION_TTL_MINUTES")) * time.Minute,
 		FingerprintSalt: viper.GetString("FINGERPRINT_SALT"),
 	}
-
+	fmt.Println("CORS ALLOWED ORIGINS:", AppConfig.CORSAllow)
+	fmt.Println("CORS CORSCredentials:", AppConfig.CORSCredentials)
 	log.Info("Configuration loaded")
 	return nil
 }

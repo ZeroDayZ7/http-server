@@ -16,10 +16,10 @@ func HelmetConfig() helmet.Config {
 		PermissionPolicy:          "",
 		CrossOriginEmbedderPolicy: "require-corp",
 		CrossOriginOpenerPolicy:   "same-origin",
-		CrossOriginResourcePolicy: "same-origin",
+		CrossOriginResourcePolicy: "cross-origin",
 		OriginAgentCluster:        "?1",
 		XDNSPrefetchControl:       "off",
 		XDownloadOptions:          "noopen",
-		XPermittedCrossDomain:     "none",
+		XPermittedCrossDomain:     "all",
 	}
 }
