@@ -1,4 +1,5 @@
 # Setting up environment for FreeBSD build
+$env:CGO_ENABLED = "0"
 $env:GOOS = "freebsd"
 $env:GOARCH = "amd64"
 

@@ -14,9 +14,19 @@ func MustInitRedis() (*redis.Client, func()) {
 	log := logger.GetLogger()
 	cfg := AppConfig.Redis
 
-	addr := fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
+	var addr string
+	var network string
+
+	if cfg.Port == "0" || cfg.Port == "" {
+		network = "unix"
+		addr = cfg.Host
+	} else {
+		network = "tcp"
+		addr = fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
+	}
 
 	client := redis.NewClient(&redis.Options{
+		Network:  network,
 		Addr:     addr,
 		Password: cfg.Password,
 		DB:       cfg.DB,
@@ -26,10 +36,10 @@ func MustInitRedis() (*redis.Client, func()) {
 	defer cancel()
 
 	if err := client.Ping(ctx).Err(); err != nil {
-		panic(fmt.Errorf("redis connection failed: %w", err))
+		panic(fmt.Errorf("redis connection failed (network: %s, addr: %s): %w", network, addr, err))
 	}
 
-	log.Info("Redis connected", zap.String("addr", addr))
+	log.Info("Redis connected", zap.String("network", network), zap.String("addr", addr))
 
 	return client, func() {
 		log.Info("Closing Redis connection...")
