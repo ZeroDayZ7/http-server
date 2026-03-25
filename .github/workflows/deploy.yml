@@ -28,23 +28,19 @@ jobs:
           ENV=production
           PORT=${{ secrets.PORT }}
           SERVER_HEADER=${{ secrets.SERVER_HEADER }}
-
           PREFORK=${{ secrets.PREFORK }}
           CASE_SENSITIVE=${{ secrets.CASE_SENSITIVE }}
           STRICT_ROUTING=${{ secrets.STRICT_ROUTING }}
           BODY_LIMIT_MB=${{ secrets.BODY_LIMIT_MB }}
-
           IDLE_TIMEOUT_SEC=${{ secrets.IDLE_TIMEOUT_SEC }}
           READ_TIMEOUT_SEC=${{ secrets.READ_TIMEOUT_SEC }}
           WRITE_TIMEOUT_SEC=${{ secrets.WRITE_TIMEOUT_SEC }}
           SHUTDOWN_TIMEOUT_SEC=${{ secrets.SHUTDOWN_TIMEOUT_SEC }}
-
           MYSQL_HOST=${{ secrets.MYSQL_HOST }}
           MYSQL_PORT=${{ secrets.MYSQL_PORT }}
           MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
           MYSQL_USER=${{ secrets.MYSQL_USER }}
           MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
-
           REDIS_HOST=${{ secrets.REDIS_HOST }}
           REDIS_PORT=${{ secrets.REDIS_PORT }}
           REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
@@ -62,28 +58,28 @@ jobs:
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
+          username: deploy
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "."
-          target: "/home/${{ secrets.SERVER_USER }}/domains/backend/temp/"
+          target: "/var/www/api"
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
+          username: deploy
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            BASE="${{ secrets.DEPLOY_PATH }}"
+            cd /var/www/api
 
-            mkdir -p $BASE/temp
-            mkdir -p $BASE/production
+            # Zatrzymanie obecnych kontenerów (ignoruje błąd jeśli nie istnieją)
+            sudo podman compose down || true
 
-            git pull origin main
+            # Budowanie i start aplikacji
+            sudo podman compose up -d --build
 
-            podman compose down
-            podman compose up -d --build
-
-            # opcjonalny health check
+            # Krótka pauza na start serwera
             sleep 5
-            curl -f http://localhost:${{ secrets.PORT }}/health || exit 1
+
+            # Health check (używa portu z secrets)
+            curl -f http://localhost:${{ secrets.PORT }}/health || (echo "Deployment failed health check" && exit 1)
