@@ -21,7 +21,6 @@ jobs:
 
       - name: Deploy
         run: |
-          podman compose down
           podman compose up -d --build
 
       - name: Health check
