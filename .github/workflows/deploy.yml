@@ -73,10 +73,10 @@ jobs:
             cd /var/www/api
 
             # Zatrzymanie obecnych kontenerów (ignoruje błąd jeśli nie istnieją)
-            sudo podman compose down || true
+            podman compose down || true
 
             # Budowanie i start aplikacji
-            sudo podman compose up -d --build
+            podman compose up -d --build
 
             # Krótka pauza na start serwera
             sleep 5
