@@ -21,8 +21,8 @@ jobs:
 
       - name: Deploy
         run: |
-          docker compose down
-          docker compose up -d --build
+          podman compose down
+          podman compose up -d --build
 
       - name: Health check
         run: curl -f http://localhost:${{ secrets.PORT }}/health
