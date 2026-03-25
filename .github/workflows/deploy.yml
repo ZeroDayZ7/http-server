@@ -15,6 +15,9 @@ jobs:
       - name: Run tests
         run: go test ./... -v
 
+      - name: Debug path
+        run: ls -la
+
       - name: Generate .env file from Secrets
         run: |
           echo "APP_NAME=${{ secrets.APP_NAME }}" >> .env
