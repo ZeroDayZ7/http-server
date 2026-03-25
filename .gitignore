@@ -10,4 +10,6 @@ bin/*
 
 # Ignore logs
 logs/
+**/combined.txt
+**/hosting.md
 
