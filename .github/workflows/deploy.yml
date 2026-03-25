@@ -69,6 +69,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: deploy
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 20m
           script: |
             cd /var/www/api
 
