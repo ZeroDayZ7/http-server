@@ -19,7 +19,7 @@ type StreamProducer struct {
 	redis *redis.Client
 }
 
-func NewStreamProducer(r *redis.Client) StreamPublisher {
+func NewStreamProducer(r *redis.Client) *StreamProducer {
 	return &StreamProducer{redis: r}
 }
 

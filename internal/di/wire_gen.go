@@ -9,23 +9,29 @@ package di
 import (
 	"database/sql"
 	"github.com/redis/go-redis/v9"
+	"github.com/zerodayz7/http-server/config"
 	"github.com/zerodayz7/http-server/internal/db"
 	"github.com/zerodayz7/http-server/internal/handler"
 	redis2 "github.com/zerodayz7/http-server/internal/redis"
 	"github.com/zerodayz7/http-server/internal/repository/mysql"
+	"github.com/zerodayz7/http-server/internal/repository/redis"
 	"github.com/zerodayz7/http-server/internal/service"
+	"github.com/zerodayz7/http-server/internal/shared/logger"
 	"github.com/zerodayz7/http-server/internal/worker"
 )
 
 // Injectors from wire.go:
 
-func InitializeInteractionModule(sqlDB *sql.DB, redisClient *redis.Client, salt string) (*InteractionModule, error) {
+func InitializeInteractionModule(sqlDB *sql.DB, redisClient *redis.Client, cfg *config.Config, log logger.Logger) (*InteractionModule, error) {
 	queries := db.New(sqlDB)
 	mySQLInteractionRepo := mysql.NewInteractionRepository(queries)
-	streamPublisher := redis2.NewStreamProducer(redisClient)
-	interactionService := service.NewInteractionService(mySQLInteractionRepo, redisClient, streamPublisher)
-	interactionHandler := handler.NewInteractionHandler(interactionService, salt)
-	interactionWorker := worker.NewInteractionWorker(redisClient, mySQLInteractionRepo)
+	redisInteractionCache := redisrepo.NewRedisInteractionCache(redisClient)
+	streamProducer := redis2.NewStreamProducer(redisClient)
+	string2 := cfg.FingerprintSalt
+	identityService := service.NewIdentityService(string2)
+	interactionService := service.NewInteractionService(mySQLInteractionRepo, redisInteractionCache, streamProducer, identityService)
+	interactionHandler := handler.NewInteractionHandler(interactionService)
+	interactionWorker := worker.NewInteractionWorker(redisClient, mySQLInteractionRepo, log)
 	interactionModule := NewInteractionModule(interactionHandler, interactionWorker)
 	return interactionModule, nil
 }

@@ -7,12 +7,11 @@ import (
 	"github.com/zerodayz7/http-server/config"
 )
 
-func SetupHealthRoutes(app *fiber.App) {
+func SetupHealthRoutes(app *fiber.App, cfg *config.Config) {
 	health := app.Group("/health")
 
-	health.Use(config.NewLimiter("health"))
+	health.Use(config.NewLimiter(cfg, "health"))
 
-	// GET /health
 	health.Get("/", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"status": "ok",

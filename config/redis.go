@@ -10,13 +10,12 @@ import (
 	"go.uber.org/zap"
 )
 
-func MustInitRedis() (*redis.Client, func()) {
-	log := logger.GetLogger()
-	cfg := AppConfig.Redis
-
+// InitRedis przyjmuje teraz config i logger jako jawne zależności
+func InitRedis(ctx context.Context, cfg RedisConfig, log logger.Logger) (*redis.Client, error) {
 	var addr string
 	var network string
 
+	// Logika wyboru protokołu (TCP vs UNIX Socket)
 	if cfg.Port == "0" || cfg.Port == "" {
 		network = "unix"
 		addr = cfg.Host
@@ -32,17 +31,19 @@ func MustInitRedis() (*redis.Client, func()) {
 		DB:       cfg.DB,
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// Sprawdzenie połączenia z timeoutem
+	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	if err := client.Ping(ctx).Err(); err != nil {
-		panic(fmt.Errorf("redis connection failed (network: %s, addr: %s): %w", network, addr, err))
+	if err := client.Ping(pingCtx).Err(); err != nil {
+		return nil, fmt.Errorf("redis connection failed (network: %s, addr: %s): %w", network, addr, err)
 	}
 
-	log.Info("Redis connected", zap.String("network", network), zap.String("addr", addr))
+	log.Info("Redis connected",
+		zap.String("network", network),
+		zap.String("addr", addr),
+		zap.Int("db", cfg.DB),
+	)
 
-	return client, func() {
-		log.Info("Closing Redis connection...")
-		_ = client.Close()
-	}
+	return client, nil
 }

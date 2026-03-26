@@ -4,12 +4,12 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
-func CorsConfig() cors.Config {
+func CorsConfig(cfg *Config) cors.Config {
 	return cors.Config{
-		AllowOrigins:     AppConfig.CORSAllow,
-		AllowMethods:     AppConfig.CORSMethods,
-		AllowHeaders:     AppConfig.CORSHeaders,
-		AllowCredentials: AppConfig.CORSCredentials,
+		AllowOrigins:     cfg.CORSAllow,
+		AllowMethods:     cfg.CORSMethods,
+		AllowHeaders:     cfg.CORSHeaders,
+		AllowCredentials: cfg.CORSCredentials,
 		ExposeHeaders:    "Content-Length",
 		MaxAge:           86400,
 	}

@@ -3,93 +3,94 @@ package main
 import (
 	"context"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/zerodayz7/http-server/config"
 	"github.com/zerodayz7/http-server/internal/di"
 	"github.com/zerodayz7/http-server/internal/redis"
 	"github.com/zerodayz7/http-server/internal/router"
-	"github.com/zerodayz7/http-server/internal/server"
 	"github.com/zerodayz7/http-server/internal/shared/logger"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 func main() {
-	log, _ := logger.InitLogger(os.Getenv("ENV"))
+	// 1. Inicjalizacja loggera
+	env := os.Getenv("ENV")
+	if env == "" {
+		env = "development"
+	}
+	log := logger.NewLogger(env)
+	defer log.Sync()
 
-	// Load config
-	if err := config.LoadConfigGlobal(); err != nil {
+	// 2. Ładowanie konfiguracji
+	if err := config.LoadConfigGlobal(log); err != nil {
 		log.Fatal("Config load failed", zap.Error(err))
 	}
+	cfg := &config.AppConfig
 
-	// Init DB (SQL)
-	db, closeDB := config.MustInitDB()
-	defer closeDB()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
-	// Init Redis
-	redisClient, closeRedis := config.MustInitRedis()
-	defer closeRedis()
+	// 3. Inicjalizacja infrastruktury
+	db, err := config.InitDB(ctx, cfg.Database, log)
+	if err != nil {
+		log.Fatal("Database initialization failed", zap.Error(err))
+	}
+	defer db.Close()
 
-	// Redis Stream Group Setup
-	log.Info("Setting up Redis Stream group")
+	redisClient, err := config.InitRedis(ctx, cfg.Redis, log)
+	if err != nil {
+		log.Fatal("Redis initialization failed", zap.Error(err))
+	}
+	defer redisClient.Close()
 
-	if err := redis.SetupStreamGroup(
-		context.Background(),
-		redisClient,
-	); err != nil {
+	if err := redis.SetupStreamGroup(ctx, redisClient); err != nil {
 		log.Fatal("Redis stream setup failed", zap.Error(err))
 	}
 
-	log.Info("Redis Stream group ready")
-
-	// Dependency Injection
-	module, err := di.InitializeInteractionModule(db, redisClient, config.AppConfig.FingerprintSalt)
+	// 4. DI - Moduł interakcji
+	module, err := di.InitializeInteractionModule(db, redisClient, cfg, log)
 	if err != nil {
-		log.Fatal("DI init failed", zap.Error(err))
+		log.Fatal("DI module initialization failed", zap.Error(err))
 	}
 
-	log.Info("DI module created")
+	g, gCtx := errgroup.WithContext(ctx)
 
-	if module == nil {
-		log.Fatal("module is nil")
+	// --- TUTAJ BYŁ BŁĄD ---
+	// Dodajemy 'log' jako drugi argument do NewFiberApp
+	app := config.NewFiberApp(cfg, log)
+
+	// Upewnij się, że SetupRoutes też ma 'log'
+	router.SetupRoutes(app, module.Handler, cfg, log)
+	// ----------------------
+
+	// Serwer HTTP
+	g.Go(func() error {
+		log.Info("HTTP server starting", zap.String("port", cfg.Server.Port))
+		return app.Listen(":" + cfg.Server.Port)
+	})
+
+	// Worker
+	g.Go(func() error {
+		log.Info("Interaction worker starting")
+		module.Worker.Start(gCtx)
+		return nil
+	})
+
+	// Graceful Shutdown
+	g.Go(func() error {
+		<-gCtx.Done()
+		log.Info("Shutting down services...")
+		return app.ShutdownWithTimeout(10 * time.Second)
+	})
+
+	if err := g.Wait(); err != nil {
+		log.Error("Application exited with error", zap.Error(err))
+		os.Exit(1)
 	}
 
-	if module.Worker == nil {
-		log.Fatal("worker is nil")
-	}
-
-	if module.Handler == nil {
-		log.Fatal("handler is nil")
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-
-	// Uruchomienie Workera z modułu
-	go module.Worker.Start(ctx)
-
-	// Fiber app
-	app := config.NewFiberApp()
-
-	// Podpięcie Route'ów przy użyciu Handlera z modułu
-	router.SetupRoutes(app, module.Handler)
-
-	// Graceful shutdown
-	server.SetupGracefulShutdown(
-		app,
-		func() {
-			log.Info("Shutting down services...")
-			cancel()
-			closeDB()
-			closeRedis()
-		},
-		config.AppConfig.Shutdown,
-	)
-
-	log.Info(
-		"Listening",
-		zap.String("port", config.AppConfig.Server.Port),
-	)
-
-	if err := app.Listen(":" + config.AppConfig.Server.Port); err != nil {
-		log.Fatal("Server failed", zap.Error(err))
-	}
+	log.Info("Application stopped cleanly")
 }

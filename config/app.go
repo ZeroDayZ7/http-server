@@ -9,37 +9,41 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/zerodayz7/http-server/internal/server"
 	"github.com/zerodayz7/http-server/internal/shared"
+	"github.com/zerodayz7/http-server/internal/shared/logger" // Import loggera
 )
 
-func NewFiberApp() *fiber.App {
+// NewFiberApp teraz przyjmuje również log
+func NewFiberApp(cfg *Config, log logger.Logger) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ProxyHeader:             fiber.HeaderXForwardedFor,
 		EnableTrustedProxyCheck: true,
-		TrustedProxies: []string{
-			"127.0.0.1",
-			"::1",
-		},
-		BodyLimit:             AppConfig.Server.BodyLimitMB * 1024 * 1024,
-		ReadTimeout:           AppConfig.Server.ReadTimeout,
-		WriteTimeout:          AppConfig.Server.WriteTimeout,
-		IdleTimeout:           AppConfig.Server.IdleTimeout,
-		Prefork:               AppConfig.Server.Prefork,
-		CaseSensitive:         AppConfig.Server.CaseSensitive,
+		TrustedProxies:          []string{"127.0.0.1", "::1"},
+
+		BodyLimit:             cfg.Server.BodyLimitMB * 1024 * 1024,
+		ReadTimeout:           cfg.Server.ReadTimeout,
+		WriteTimeout:          cfg.Server.WriteTimeout,
+		IdleTimeout:           cfg.Server.IdleTimeout,
+		Prefork:               cfg.Server.Prefork,
+		CaseSensitive:         cfg.Server.CaseSensitive,
 		DisableStartupMessage: true,
 		EnableIPValidation:    true,
-		ServerHeader:          AppConfig.Server.ServerHeader,
-		AppName:               AppConfig.Server.AppName,
-		RequestMethods:        []string{"GET", "POST", "OPTIONS", "HEAD"},
-		ErrorHandler:          server.ErrorHandler(),
+		ServerHeader:          cfg.Server.ServerHeader,
+		AppName:               cfg.Server.AppName,
+
+		RequestMethods: []string{"GET", "POST", "OPTIONS", "HEAD"},
+		// Przekazujemy log do ErrorHandlera
+		ErrorHandler: server.ErrorHandler(log),
 	})
 
 	app.Use(requestid.New())
 	app.Use(recover.New())
-	// app.Use(FiberLoggerMiddleware())
-	app.Use(shared.RequestLoggerMiddleware())
-	app.Use(cors.New(CorsConfig()))
+
+	// Przekazujemy log do Middleware
+	app.Use(shared.RequestLoggerMiddleware(log))
+
+	app.Use(cors.New(CorsConfig(cfg)))
 	app.Use(helmet.New(HelmetConfig()))
-	app.Use(NewLimiter("global"))
+	app.Use(NewLimiter(cfg, "global"))
 	app.Use(compress.New(CompressConfig()))
 
 	return app

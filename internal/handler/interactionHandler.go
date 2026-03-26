@@ -1,120 +1,70 @@
 package handler
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-
 	"github.com/gofiber/fiber/v2"
-	"github.com/zerodayz7/http-server/internal/errors"
 	"github.com/zerodayz7/http-server/internal/service"
-	"github.com/zerodayz7/http-server/internal/validator"
 )
 
 type InteractionHandler struct {
-	service *service.InteractionService
-	salt    string
+	service service.InteractionServiceInterface
 }
 
-func NewInteractionHandler(svc *service.InteractionService, salt string) *InteractionHandler {
+func NewInteractionHandler(service service.InteractionServiceInterface) *InteractionHandler {
 	return &InteractionHandler{
-		service: svc,
-		salt:    salt,
+		service: service,
 	}
 }
 
-func HandleServiceError(c *fiber.Ctx, err error) error {
-	if appErr, ok := err.(*errors.AppError); ok {
-		return errors.SendAppError(c, appErr)
-	}
-
-	return errors.SendAppError(c, errors.ErrInternal)
-}
-
-func GetValidated[T any](c *fiber.Ctx, key string) (T, error) {
-	var zero T
-
-	v, ok := c.Locals(key).(T)
-	if !ok {
-		return zero, errors.ErrInvalidRequest
-	}
-
-	return v, nil
-}
-
-func (h *InteractionHandler) getFingerprint(c *fiber.Ctx) string {
+// Pomocnicza funkcja do wyciągania danych i tworzenia FP
+func (h *InteractionHandler) getFP(c *fiber.Ctx) string {
 	ip := c.IP()
 	ua := c.Get("User-Agent")
 	lang := c.Get("Accept-Language")
 
-	raw := ip + "|" + ua + "|" + lang + "|" + h.salt
-
-	hash := sha256.Sum256([]byte(raw))
-	return hex.EncodeToString(hash[:])
+	// Wywołujemy serwis tożsamości poprzez główny serwis
+	return h.service.GenerateFingerprint(ip, ua, lang)
 }
 
-func (h *InteractionHandler) InitializeSession(c *fiber.Ctx) error {
-	fp := h.getFingerprint(c)
+func (h *InteractionHandler) HandleVisit(c *fiber.Ctx) error {
+	fp := h.getFP(c) // <--- Generujemy na backendzie, nie z Query!
 
-	resp, err := h.service.ProcessInitialVisit(c.Context(), fp)
+	stats, err := h.service.ProcessInitialVisit(c.Context(), fp)
 	if err != nil {
-		return HandleServiceError(c, err)
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return c.JSON(resp)
+	return c.JSON(stats)
 }
 
-func (h *InteractionHandler) RecordVisit(c *fiber.Ctx) error {
+func (h *InteractionHandler) HandleLike(c *fiber.Ctx) error {
+	fp := h.getFP(c)
 
-	body, _ := GetValidated[validator.InteractionRequest](c, "validatedBody")
-
-	fp := body.Fingerprint
-	if fp == "" {
-		fp = h.getFingerprint(c)
-	}
-
-	resp, err := h.service.HandleInteraction(
-		c.Context(),
-		fp,
-		service.TypeVisit,
-	)
-
+	stats, err := h.service.HandleInteraction(c.Context(), fp, service.TypeLike)
 	if err != nil {
-		return HandleServiceError(c, err)
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return c.JSON(resp)
+	return c.JSON(stats)
+}
+
+func (h *InteractionHandler) HandleDislike(c *fiber.Ctx) error {
+	fp := h.getFP(c)
+
+	stats, err := h.service.HandleInteraction(c.Context(), fp, service.TypeDislike)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(stats)
 }
 
 func (h *InteractionHandler) GetStats(c *fiber.Ctx) error {
+	fp := h.getFP(c)
 
-	query, err := GetValidated[validator.FingerprintRequest](c, "validatedQuery")
+	stats, err := h.service.GetStats(c.Context(), fp)
 	if err != nil {
-		return HandleServiceError(c, err)
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	resp, err := h.service.GetStats(
-		c.Context(),
-		query.Fingerprint,
-	)
-
-	if err != nil {
-		return HandleServiceError(c, err)
-	}
-
-	return c.JSON(resp)
-}
-
-func (h *InteractionHandler) RecordLike(c *fiber.Ctx) error {
-	body, err := GetValidated[validator.InteractionRequest](c, "validatedBody")
-	if err != nil {
-		return HandleServiceError(c, err)
-	}
-
-	fp := h.getFingerprint(c)
-
-	resp, err := h.service.HandleInteraction(c.Context(), fp, body.Type)
-	if err != nil {
-		return HandleServiceError(c, err)
-	}
-	return c.JSON(resp)
+	return c.JSON(stats)
 }

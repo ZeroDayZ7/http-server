@@ -2,91 +2,97 @@ package logger
 
 import (
 	"os"
-	"sync"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-type Logger struct {
+// zapLogger implementuje interfejs Logger
+type zapLogger struct {
 	*zap.Logger
 }
 
-var (
-	instance *Logger
-	once     sync.Once
-)
-
-func InitLogger(env string) (*Logger, error) {
-	var err error
-	once.Do(func() {
-		var cfg zap.Config
-
-		if env == "production" {
-			cfg = zap.NewProductionConfig()
-			cfg.OutputPaths = []string{"stdout"}
-		} else {
-			cfg = zap.NewDevelopmentConfig()
-			cfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-			cfg.OutputPaths = []string{"stdout"}
-		}
-
-		logFile := &lumberjack.Logger{
-			Filename:   "logs/app.log",
-			MaxSize:    10, // MB
-			MaxBackups: 5,
-			MaxAge:     7, // days
-			Compress:   true,
-		}
-
-		consoleCore := zapcore.NewCore(
-			zapcore.NewConsoleEncoder(cfg.EncoderConfig),
-			zapcore.AddSync(os.Stdout),
-			zapcore.DebugLevel,
-		)
-		fileCore := zapcore.NewCore(
-			zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
-			zapcore.AddSync(logFile),
-			zapcore.InfoLevel,
-		)
-
-		core := zapcore.NewTee(consoleCore, fileCore)
-
-		// zapLogger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
-		zapLogger := zap.New(core, zap.AddStacktrace(zapcore.ErrorLevel))
-		instance = &Logger{zapLogger}
-	})
-	return instance, err
-}
-
-func GetLogger() *Logger {
-	if instance == nil {
-		InitLogger("development")
+// NewLogger to teraz Twój "Provider" dla Wire.
+// Przyjmuje env (np. z flag startowych lub zmiennej środowiskowej), aby wiedzieć jak się skonfigurować.
+func NewLogger(env string) Logger {
+	level := zap.DebugLevel
+	if env == "production" {
+		level = zap.InfoLevel
 	}
-	return instance
+
+	// Konfiguracja Konsoli
+	consoleEncoderConfig := zap.NewDevelopmentEncoderConfig()
+	if env == "production" {
+		consoleEncoderConfig = zap.NewProductionEncoderConfig()
+	}
+	consoleEncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+
+	// Konfiguracja Pliku (Lumberjack)
+	logFile := &lumberjack.Logger{
+		Filename:   "logs/app.log",
+		MaxSize:    10, // megabytes
+		MaxBackups: 5,
+		MaxAge:     7, // days
+		Compress:   true,
+	}
+
+	fileEncoderConfig := zap.NewProductionEncoderConfig()
+
+	// Tworzenie Core
+	consoleCore := zapcore.NewCore(
+		zapcore.NewConsoleEncoder(consoleEncoderConfig),
+		zapcore.AddSync(os.Stdout),
+		level,
+	)
+
+	fileCore := zapcore.NewCore(
+		zapcore.NewJSONEncoder(fileEncoderConfig),
+		zapcore.AddSync(logFile),
+		zap.InfoLevel,
+	)
+
+	core := zapcore.NewTee(consoleCore, fileCore)
+
+	// Tworzenie finalnej instancji zap.Logger
+	zapInst := zap.New(core,
+		zap.AddCaller(),
+		zap.AddStacktrace(zap.ErrorLevel),
+	)
+
+	return &zapLogger{zapInst}
 }
 
-func (l *Logger) Info(msg string, fields ...zap.Field) {
-	l.Logger.WithOptions(zap.AddCallerSkip(1)).Info(msg, fields...)
+// --- Implementacja metod interfejsu Logger ---
+
+func (l *zapLogger) Info(msg string, fields ...zap.Field) {
+	l.Logger.Info(msg, fields...)
 }
 
-func (l *Logger) Debug(msg string, fields ...zap.Field) {
-	l.Logger.WithOptions(zap.AddCallerSkip(1)).Debug(msg, fields...)
+func (l *zapLogger) Debug(msg string, fields ...zap.Field) {
+	l.Logger.Debug(msg, fields...)
 }
 
-func (l *Logger) Warn(msg string, fields ...zap.Field) {
-	l.Logger.WithOptions(zap.AddCallerSkip(1)).Warn(msg, fields...)
+func (l *zapLogger) Warn(msg string, fields ...zap.Field) {
+	l.Logger.Warn(msg, fields...)
 }
 
-func (l *Logger) Error(msg string, fields ...zap.Field) {
-	l.Logger.WithOptions(zap.AddCallerSkip(1)).Error(msg, fields...)
+func (l *zapLogger) Error(msg string, fields ...zap.Field) {
+	l.Logger.Error(msg, fields...)
 }
 
-func (l *Logger) InfoObj(msg string, obj any) {
-	l.Logger.WithOptions(zap.AddCallerSkip(1)).Info(msg, zap.Any("data", obj))
+func (l *zapLogger) Fatal(msg string, fields ...zap.Field) {
+	l.Logger.Fatal(msg, fields...)
 }
 
-func (l *Logger) DebugObj(msg string, obj any) {
-	l.Logger.WithOptions(zap.AddCallerSkip(1)).Debug(msg, zap.Any("data", obj))
+func (l *zapLogger) InfoObj(msg string, obj any) {
+	l.Logger.Info(msg, zap.Any("data", obj))
+}
+
+func (l *zapLogger) DebugObj(msg string, obj any) {
+	l.Logger.Debug(msg, zap.Any("data", obj))
+}
+
+func (l *zapLogger) Sync() error {
+	return l.Logger.Sync()
 }

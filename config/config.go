@@ -65,8 +65,7 @@ type Config struct {
 var AppConfig Config
 var Store *session.Store
 
-func LoadConfigGlobal() error {
-	log := logger.GetLogger()
+func LoadConfigGlobal(log logger.Logger) error {
 
 	viper.SetConfigFile(".env")
 	viper.AutomaticEnv()
@@ -146,8 +145,7 @@ func LoadConfigGlobal() error {
 		SessionTTL:      time.Duration(viper.GetInt("SESSION_TTL_MINUTES")) * time.Minute,
 		FingerprintSalt: viper.GetString("FINGERPRINT_SALT"),
 	}
-	fmt.Println("CORS ALLOWED ORIGINS:", AppConfig.CORSAllow)
-	fmt.Println("CORS CORSCredentials:", AppConfig.CORSCredentials)
-	log.Info("Configuration loaded")
+
+	log.Info("Configuration loaded", zap.String("env", AppConfig.Server.Env))
 	return nil
 }

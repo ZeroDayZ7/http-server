@@ -1,44 +1,43 @@
 package config
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/zerodayz7/http-server/internal/shared/logger"
+	"go.uber.org/zap"
 )
 
-func MustInitDB() (*sql.DB, func()) {
-	log := logger.GetLogger()
-	cfg := AppConfig.Database
-
+func InitDB(ctx context.Context, cfg DBConfig, log logger.Logger) (*sql.DB, error) {
 	dsn := fmt.Sprintf(
 		"%s:%s@tcp(%s:%s)/%s?parseTime=true&multiStatements=true",
-		cfg.User,
-		cfg.Password,
-		cfg.Host,
-		cfg.Port,
-		cfg.DBName,
+		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName,
 	)
 
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("db open failed: %w", err)
 	}
 
 	db.SetMaxOpenConns(cfg.MaxOpenConns)
 	db.SetMaxIdleConns(cfg.MaxIdleConns)
 	db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
 
-	if err := db.Ping(); err != nil {
-		panic(err)
+	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	if err := db.PingContext(pingCtx); err != nil {
+		return nil, fmt.Errorf("db ping failed: %w", err)
 	}
 
-	RunMigrations(db)
-
-	log.Info("MySQL connected via database/sql")
-
-	return db, func() {
-		_ = db.Close()
+	// Przekazujemy logger do migracji
+	if err := RunMigrations(db, log); err != nil {
+		return nil, fmt.Errorf("migrations failed: %w", err)
 	}
+
+	log.Info("MySQL connected and migrations applied", zap.String("database", cfg.DBName))
+	return db, nil
 }

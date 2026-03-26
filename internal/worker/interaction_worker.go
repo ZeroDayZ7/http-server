@@ -3,11 +3,12 @@ package worker
 import (
 	"context"
 	"errors"
-	"log"
 	"time"
 
 	"github.com/google/uuid"
 	goredis "github.com/redis/go-redis/v9"
+	"github.com/zerodayz7/http-server/internal/shared/logger"
+	"go.uber.org/zap"
 )
 
 const (
@@ -23,57 +24,52 @@ type InteractionWorker struct {
 	redisClient *goredis.Client
 	repo        InteractionRepository
 	consumerID  string
+	logger      logger.Logger
 }
 
-func NewInteractionWorker(redisClient *goredis.Client, repo InteractionRepository) *InteractionWorker {
+func NewInteractionWorker(redisClient *goredis.Client, repo InteractionRepository, log logger.Logger) *InteractionWorker {
 	id := "worker-" + uuid.NewString()
 
-	log.Printf("[WORKER INIT] Creating worker instance ID=%s\n", id)
+	log.Info("Creating worker instance", zap.String("worker_id", id))
 
 	return &InteractionWorker{
 		redisClient: redisClient,
 		repo:        repo,
 		consumerID:  id,
+		logger:      log,
 	}
 }
 
 func (w *InteractionWorker) Start(ctx context.Context) {
-
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("[WORKER PANIC] Worker crashed: %v\n", r)
+			w.logger.Error("Worker crashed (panic recovery)", zap.Any("panic_info", r))
 		}
 	}()
 
-	log.Printf("[WORKER START] Interaction worker started. consumerID=%s\n", w.consumerID)
+	w.logger.Info("Interaction worker started")
 
 	iteration := 0
-
 	for ctx.Err() == nil {
-
 		iteration++
-		log.Printf("[WORKER LOOP] iteration=%d consumerID=%s\n", iteration, w.consumerID)
+		w.logger.Debug("Worker loop iteration", zap.Int("iteration", iteration))
 
 		start := time.Now()
-
 		w.consumeBatch(ctx)
 
-		log.Printf(
-			"[WORKER LOOP DONE] iteration=%d duration=%s\n",
-			iteration,
-			time.Since(start),
+		w.logger.Debug("Worker loop done",
+			zap.Int("iteration", iteration),
+			zap.Duration("duration", time.Since(start)),
 		)
 	}
 
-	log.Println("[WORKER SHUTDOWN] Context canceled. Worker shutting down cleanly.")
+	w.logger.Info("Context canceled. Worker shutting down cleanly.")
 }
 
 func (w *InteractionWorker) consumeBatch(ctx context.Context) {
-
-	log.Printf("[REDIS WAIT] Waiting for messages from stream=%s group=%s consumer=%s\n",
-		streamName,
-		groupName,
-		w.consumerID,
+	w.logger.Debug("Waiting for messages",
+		zap.String("stream", streamName),
+		zap.String("group", groupName),
 	)
 
 	streams, err := w.redisClient.XReadGroup(ctx, &goredis.XReadGroupArgs{
@@ -85,117 +81,77 @@ func (w *InteractionWorker) consumeBatch(ctx context.Context) {
 	}).Result()
 
 	if err != nil {
-
 		if errors.Is(err, goredis.Nil) {
-			log.Println("[REDIS EMPTY] No messages in stream (timeout)")
+			w.logger.Debug("No messages in stream (timeout)")
 			return
 		}
-
-		log.Printf("[REDIS ERROR] XReadGroup failed: %v\n", err)
-
+		w.logger.Error("XReadGroup failed", zap.Error(err))
 		time.Sleep(time.Second)
 		return
 	}
 
-	log.Printf("[REDIS RESPONSE] Streams returned=%d\n", len(streams))
-
 	for _, stream := range streams {
-
-		log.Printf("[STREAM] name=%s messages=%d\n",
-			stream.Stream,
-			len(stream.Messages),
+		w.logger.Info("Batch received",
+			zap.String("stream", stream.Stream),
+			zap.Int("count", len(stream.Messages)),
 		)
 
 		for _, msg := range stream.Messages {
-
-			log.Printf("[MESSAGE RECEIVED] id=%s payload=%v\n",
-				msg.ID,
-				msg.Values,
-			)
-
 			w.handleMessage(ctx, msg)
 		}
 	}
 }
 
 func (w *InteractionWorker) handleMessage(ctx context.Context, msg goredis.XMessage) {
-
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("[MESSAGE PANIC] msgID=%s panic=%v\n", msg.ID, r)
+			w.logger.Error("Message processing panic",
+				zap.String("msg_id", msg.ID),
+				zap.Any("panic_info", r),
+			)
 		}
 	}()
 
-	log.Printf("[MESSAGE START] Processing msgID=%s\n", msg.ID)
-
-	eventType := safeString(msg.Values["type"])
-	fp := safeString(msg.Values["fp"])
-
-	log.Printf(
-		"[MESSAGE PARSED] msgID=%s type=%s fingerprint=%s\n",
-		msg.ID,
-		eventType,
-		fp,
-	)
+	eventType := w.safeString(msg.Values["type"])
+	fp := w.safeString(msg.Values["fp"])
 
 	if eventType == "" {
-
-		log.Printf("[MESSAGE INVALID] Missing event type. msgID=%s\n", msg.ID)
-
+		w.logger.Warn("Missing event type, skipping and acking", zap.String("msg_id", msg.ID))
 		w.ackMessage(ctx, msg.ID)
-
 		return
 	}
-
-	log.Printf("[DB OPERATION] Increment counter type=%s\n", eventType)
 
 	err := w.repo.Increment(ctx, eventType)
-
 	if err != nil {
-
-		log.Printf(
-			"[DB ERROR] Increment failed type=%s fp=%s error=%v msgID=%s\n",
-			eventType,
-			fp,
-			err,
-			msg.ID,
+		w.logger.Error("Increment failed",
+			zap.String("type", eventType),
+			zap.String("fp", fp),
+			zap.Error(err),
+			zap.String("msg_id", msg.ID),
 		)
-
 		return
 	}
 
-	log.Printf("[DB SUCCESS] Increment OK type=%s msgID=%s\n", eventType, msg.ID)
-
+	w.logger.Debug("Increment OK", zap.String("type", eventType), zap.String("msg_id", msg.ID))
 	w.ackMessage(ctx, msg.ID)
 }
 
 func (w *InteractionWorker) ackMessage(ctx context.Context, msgID string) {
-
-	log.Printf("[ACK START] msgID=%s\n", msgID)
-
 	err := w.redisClient.XAck(ctx, streamName, groupName, msgID).Err()
-
 	if err != nil {
-
-		log.Printf("[ACK ERROR] msgID=%s error=%v\n", msgID, err)
+		w.logger.Error("ACK error", zap.String("msg_id", msgID), zap.Error(err))
 		return
 	}
-
-	log.Printf("[ACK SUCCESS] msgID=%s\n", msgID)
 }
 
-func safeString(v any) string {
-
+func (w *InteractionWorker) safeString(v any) string {
 	if v == nil {
 		return ""
 	}
-
 	s, ok := v.(string)
-
 	if !ok {
-		log.Printf("[TYPE WARNING] value is not string: %T\n", v)
+		w.logger.Warn("Value is not a string", zap.Any("type", v))
 		return ""
 	}
-
 	return s
 }
