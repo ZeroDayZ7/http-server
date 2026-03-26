@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 )
 
 type InteractionService struct {
@@ -32,9 +33,14 @@ func (s *InteractionService) GenerateFingerprint(ip, ua, lang string) string {
 
 func (s *InteractionService) ProcessInitialVisit(ctx context.Context, fp string) (*StatsResponse, error) {
 	recorded, err := s.cache.TryRecordVisit(ctx, fp, Cooldown)
+	if err != nil {
+		return nil, fmt.Errorf("visit cache failed: %w", err)
+	}
 
-	if err == nil && recorded {
-		_ = s.publisher.PublishInteraction(ctx, TypeVisit, fp)
+	if recorded {
+		if err := s.publisher.PublishInteraction(ctx, TypeVisit, fp); err != nil {
+			return nil, fmt.Errorf("publish visit failed: %w", err)
+		}
 	}
 
 	return s.GetStats(ctx, fp)
@@ -46,23 +52,43 @@ func (s *InteractionService) HandleInteraction(ctx context.Context, fp string, t
 	}
 
 	recorded, err := s.cache.TryRecordInteraction(ctx, fp, typ, Cooldown)
+	if err != nil {
+		return nil, fmt.Errorf("interaction cache failed: %w", err)
+	}
 
-	if err == nil && recorded {
-		_ = s.publisher.PublishInteraction(ctx, typ, fp)
+	if recorded {
+		if err := s.publisher.PublishInteraction(ctx, typ, fp); err != nil {
+			return nil, fmt.Errorf("publish interaction failed: %w", err)
+		}
 	}
 
 	return s.GetStats(ctx, fp)
 }
 
 func (s *InteractionService) GetStats(ctx context.Context, fp string) (*StatsResponse, error) {
-	likes := s.getGlobalCount(ctx, TypeLike)
-	dislikes := s.getGlobalCount(ctx, TypeDislike)
-	visits := s.getGlobalCount(ctx, TypeVisit)
+	likes, err := s.getGlobalCount(ctx, TypeLike)
+	if err != nil {
+		return nil, err
+	}
 
-	val, _ := s.cache.GetUserChoice(ctx, fp)
+	dislikes, err := s.getGlobalCount(ctx, TypeDislike)
+	if err != nil {
+		return nil, err
+	}
+
+	visits, err := s.getGlobalCount(ctx, TypeVisit)
+	if err != nil {
+		return nil, err
+	}
+
+	val, err := s.cache.GetUserChoice(ctx, fp)
+	if err != nil {
+		val = ""
+	}
 
 	var choicePtr *string
 	allowed := true
+
 	if val != "" {
 		choicePtr = &val
 		allowed = false
@@ -78,16 +104,19 @@ func (s *InteractionService) GetStats(ctx context.Context, fp string) (*StatsRes
 	}, nil
 }
 
-func (s *InteractionService) getGlobalCount(ctx context.Context, typ string) int {
+func (s *InteractionService) getGlobalCount(ctx context.Context, typ string) (int, error) {
 	if val, ok := s.cache.GetGlobalCount(ctx, typ); ok {
-		return val
+		return val, nil
 	}
 
 	count, err := s.repo.GetCount(ctx, typ)
 	if err != nil {
-		return 0
+		return 0, fmt.Errorf("db get count failed (%s): %w", typ, err)
 	}
 
-	_ = s.cache.SetGlobalCount(ctx, typ, count, GlobalStatsTTL)
-	return count
+	if err := s.cache.SetGlobalCount(ctx, typ, count, GlobalStatsTTL); err != nil {
+		return count, nil
+	}
+
+	return count, nil
 }

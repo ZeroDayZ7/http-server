@@ -7,12 +7,10 @@ import (
 )
 
 func SetupFallbackHandlers(app *fiber.App, log logger.Logger) {
-	// Obsługa favicon - zwracamy 204 No Content, aby nie zaśmiecać logów 404
 	app.Get("/favicon.ico", func(c *fiber.Ctx) error {
 		return c.SendStatus(fiber.StatusNoContent)
 	})
 
-	// Globalny fallback dla nieistniejących ścieżek (404)
 	app.Use(func(c *fiber.Ctx) error {
 		log.Warn("404 - not found",
 			zap.String("path", c.Path()),
@@ -21,7 +19,8 @@ func SetupFallbackHandlers(app *fiber.App, log logger.Logger) {
 		)
 
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "Resource not found",
+			"code":    "NOT_FOUND",
+			"message": "Resource not found",
 		})
 	})
 }

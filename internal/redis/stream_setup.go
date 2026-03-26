@@ -8,7 +8,6 @@ import (
 )
 
 func SetupStreamGroup(ctx context.Context, r *redis.Client) error {
-
 	_, err := r.XGroupCreateMkStream(
 		ctx,
 		"interaction_events",
@@ -16,13 +15,16 @@ func SetupStreamGroup(ctx context.Context, r *redis.Client) error {
 		"0",
 	).Result()
 
-	// Redis zwraca błąd jeśli grupa już istnieje
 	if err != nil {
-		if strings.Contains(err.Error(), "BUSYGROUP") {
+		if isBusyGroupErr(err) {
 			return nil
 		}
 		return err
 	}
 
 	return nil
+}
+
+func isBusyGroupErr(err error) bool {
+	return strings.HasPrefix(err.Error(), "BUSYGROUP")
 }

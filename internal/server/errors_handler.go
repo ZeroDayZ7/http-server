@@ -59,10 +59,17 @@ func ErrorHandler(log logger.Logger) fiber.ErrorHandler {
 			})
 		}
 
-		log.Error("Uncaught server error", zap.Error(err), zap.String("path", c.Path()))
+		log.Error("Uncaught server error",
+			zap.Error(err),
+			zap.String("path", c.Path()),
+			zap.String("method", c.Method()),
+		)
+
+		internal := apperrors.ErrInternal.WithErr(err)
+
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"code":    "INTERNAL_ERROR",
-			"message": "An unexpected error occurred",
+			"code":    internal.Code,
+			"message": internal.Message,
 		})
 	}
 }

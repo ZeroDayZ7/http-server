@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"errors"
+	"reflect"
 	"time"
 
 	"github.com/google/uuid"
@@ -148,10 +149,16 @@ func (w *InteractionWorker) safeString(v any) string {
 	if v == nil {
 		return ""
 	}
+
 	s, ok := v.(string)
-	if !ok {
-		w.logger.Warn("Value is not a string", zap.Any("type", v))
-		return ""
+	if ok {
+		return s
 	}
-	return s
+
+	w.logger.Warn("Value is not a string",
+		zap.String("actual_type", reflect.TypeOf(v).String()),
+		zap.Any("value", v),
+	)
+
+	return ""
 }

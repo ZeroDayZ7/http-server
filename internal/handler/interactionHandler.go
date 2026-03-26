@@ -2,7 +2,9 @@ package handler
 
 import (
 	"github.com/gofiber/fiber/v2"
+	apperrors "github.com/zerodayz7/http-server/internal/errors"
 	"github.com/zerodayz7/http-server/internal/service"
+	"github.com/zerodayz7/http-server/internal/validator"
 )
 
 type InteractionHandler struct {
@@ -15,44 +17,33 @@ func NewInteractionHandler(service service.InteractionServiceInterface) *Interac
 	}
 }
 
-// Pomocnicza funkcja do wyciągania danych i tworzenia FP
 func (h *InteractionHandler) getFP(c *fiber.Ctx) string {
 	ip := c.IP()
 	ua := c.Get("User-Agent")
 	lang := c.Get("Accept-Language")
 
-	// Wywołujemy serwis tożsamości poprzez główny serwis
 	return h.service.GenerateFingerprint(ip, ua, lang)
 }
 
 func (h *InteractionHandler) HandleVisit(c *fiber.Ctx) error {
-	fp := h.getFP(c) // <--- Generujemy na backendzie, nie z Query!
+	fp := h.getFP(c)
 
 	stats, err := h.service.ProcessInitialVisit(c.Context(), fp)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		return apperrors.ErrInternal.WithErr(err)
 	}
 
 	return c.JSON(stats)
 }
 
-func (h *InteractionHandler) HandleLike(c *fiber.Ctx) error {
+func (h *InteractionHandler) HandleInteraction(c *fiber.Ctx) error {
 	fp := h.getFP(c)
 
-	stats, err := h.service.HandleInteraction(c.Context(), fp, service.TypeLike)
+	body := c.Locals("validatedBody").(validator.InteractionRequest)
+
+	stats, err := h.service.HandleInteraction(c.Context(), fp, body.Type)
 	if err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
-	}
-
-	return c.JSON(stats)
-}
-
-func (h *InteractionHandler) HandleDislike(c *fiber.Ctx) error {
-	fp := h.getFP(c)
-
-	stats, err := h.service.HandleInteraction(c.Context(), fp, service.TypeDislike)
-	if err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+		return apperrors.ErrInvalidRequest.WithErr(err)
 	}
 
 	return c.JSON(stats)
@@ -63,7 +54,7 @@ func (h *InteractionHandler) GetStats(c *fiber.Ctx) error {
 
 	stats, err := h.service.GetStats(c.Context(), fp)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		return apperrors.ErrInternal.WithErr(err)
 	}
 
 	return c.JSON(stats)
