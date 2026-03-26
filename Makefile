@@ -3,7 +3,7 @@
 # ===============================
 
 include .env
-include .env.dev
+-include .env.dev
 
 .PHONY: run migrate-up migrate-down migrate-create migrate-goto del-sess build-production
 
