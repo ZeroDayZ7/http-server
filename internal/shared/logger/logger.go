@@ -56,6 +56,12 @@ func NewLogger(env string) Logger {
 	return &zapLogger{zapInst}
 }
 
+func NewNop() Logger {
+	return &zapLogger{
+		Logger: zap.NewNop(),
+	}
+}
+
 func (l *zapLogger) Info(msg string, fields ...zap.Field) {
 	l.Logger.Info(msg, fields...)
 }

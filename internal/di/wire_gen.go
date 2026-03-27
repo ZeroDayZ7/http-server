@@ -31,8 +31,25 @@ func InitializeInteractionModule(sqlDB *sql.DB, redisClient *redis.Client, cfg *
 	identityService := service.NewIdentityService(string2)
 	interactionService := service.NewInteractionService(mySQLInteractionRepo, redisInteractionCache, streamProducer, identityService, log)
 	interactionHandler := handler.NewInteractionHandler(interactionService)
-	duration := cfg.Shutdown
-	interactionWorker := worker.NewInteractionWorker(redisClient, mySQLInteractionRepo, log, duration)
+	interactionWorker := provideInteractionWorker(redisClient, mySQLInteractionRepo, log, cfg)
 	interactionModule := NewInteractionModule(interactionHandler, interactionWorker)
 	return interactionModule, nil
+}
+
+// wire.go:
+
+// 1. Definiujemy provider pomocniczy POZA funkcją Initialize
+func provideInteractionWorker(
+	rdb *redis.Client,
+	repo service.InteractionRepository,
+	log logger.Logger,
+	cfg *env.Config,
+) *worker.InteractionWorker {
+	return worker.NewInteractionWorker(
+		rdb,
+		repo,
+		log,
+		cfg.Shutdown,
+		cfg.WorkerFlushInterval,
+	)
 }

@@ -19,6 +19,22 @@ import (
 	"github.com/zerodayz7/http-server/internal/worker"
 )
 
+// 1. Definiujemy provider pomocniczy POZA funkcją Initialize
+func provideInteractionWorker(
+	rdb *redis.Client,
+	repo service.InteractionRepository,
+	log logger.Logger,
+	cfg *env.Config,
+) *worker.InteractionWorker {
+	return worker.NewInteractionWorker(
+		rdb,
+		repo,
+		log,
+		cfg.Shutdown,            // To idzie do 'timeout'
+		cfg.WorkerFlushInterval, // To idzie do 'flushInterval'
+	)
+}
+
 func InitializeInteractionModule(
 	sqlDB *sql.DB,
 	redisClient *redis.Client,
@@ -26,32 +42,28 @@ func InitializeInteractionModule(
 	log logger.Logger,
 ) (*InteractionModule, error) {
 	panic(wire.Build(
-		wire.FieldsOf(new(*env.Config), "FingerprintSalt", "Shutdown"),
+		// Zostawiamy tylko te pola, które nie kolidują typami
+		wire.FieldsOf(new(*env.Config), "FingerprintSalt"),
 
-		// FIX 1: Mapowanie *sql.DB na db.DBTX (wymagane przez SQLc)
 		wire.Bind(new(db.DBTX), new(*sql.DB)),
 		db.New,
 
-		// Repozytorium MySQL
 		mysqlrepo.NewInteractionRepository,
 		wire.Bind(new(service.InteractionRepository), new(*mysqlrepo.MySQLInteractionRepo)),
 
-		// Cache Redis
 		redisrepo.NewRedisInteractionCache,
 		wire.Bind(new(service.InteractionCache), new(*redisrepo.RedisInteractionCache)),
 
-		// Events
 		intRedis.NewStreamProducer,
 		wire.Bind(new(service.EventPublisher), new(*intRedis.StreamProducer)),
 
-		// Serwisy
 		service.NewIdentityService,
 		service.NewInteractionService,
 		wire.Bind(new(service.InteractionServiceInterface), new(*service.InteractionService)),
 
-		// Handler & Worker
 		handler.NewInteractionHandler,
-		worker.NewInteractionWorker,
+
+		provideInteractionWorker,
 
 		NewInteractionModule,
 	))

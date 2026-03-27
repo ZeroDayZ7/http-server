@@ -51,4 +51,5 @@ func setDefaults() {
 	viper.SetDefault("SHUTDOWN_TIMEOUT", 5*time.Second)
 	viper.SetDefault("SESSION_TTL", 24*time.Hour)
 	viper.SetDefault("FINGERPRINT_SALT", "default-secret-salt-1234")
+	viper.SetDefault("WORKER_FLUSH_INTERVAL", 10*time.Second)
 }

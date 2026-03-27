@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -23,8 +24,7 @@ const (
 	maxRetries = 5 // Number of processing attempts before moving a message to DLQ
 
 	// Performance and batching thresholds
-	bulkThreshold  = 50               // Message count trigger to switch from individual to bulk status checks
-	flushInterval  = 10 * time.Second // Maximum time to wait before forcing a database synchronization
+	bulkThreshold  = 50 // Message count trigger to switch from individual to bulk status checks
 	readBlockTime  = 2 * time.Second
 	batchSizeLimit = 100 // Batch size threshold that triggers an immediate flush to DB
 	readBatchSize  = 10  // Number of messages to pull from Redis in a single XReadGroup call
@@ -36,9 +36,10 @@ type InteractionWorker struct {
 	consumerID      string
 	logger          logger.Logger
 	shutdownTimeout time.Duration
+	flushInterval   time.Duration
 }
 
-func NewInteractionWorker(redisClient *redis.Client, repo service.InteractionRepository, log logger.Logger, timeout time.Duration) *InteractionWorker {
+func NewInteractionWorker(redisClient *redis.Client, repo service.InteractionRepository, log logger.Logger, timeout time.Duration, flushInterval time.Duration) *InteractionWorker {
 	id := "worker-" + uuid.NewString()
 	log.Info("Creating worker instance", zap.String("worker_id", id))
 
@@ -48,13 +49,18 @@ func NewInteractionWorker(redisClient *redis.Client, repo service.InteractionRep
 		consumerID:      id,
 		logger:          log,
 		shutdownTimeout: timeout,
+		flushInterval:   flushInterval,
 	}
 }
 
-func (w *InteractionWorker) Start(ctx context.Context) {
+func (w *InteractionWorker) Start(ctx context.Context) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			w.logger.Error("Worker crashed (panic recovery)", zap.Any("panic_info", r))
+			err = fmt.Errorf("worker panic: %v", r)
+			w.logger.Error("Worker crashed (panic recovery)",
+				zap.Any("panic_info", r),
+				zap.Stack("stack"),
+			)
 		}
 	}()
 
@@ -62,41 +68,47 @@ func (w *InteractionWorker) Start(ctx context.Context) {
 
 	batch := make(map[string]int64)
 	var pendingMsgIDs []string
-	ticker := time.NewTicker(flushInterval)
+	ticker := time.NewTicker(w.flushInterval)
 	defer ticker.Stop()
 
 	readOld := true
 
 	for {
+		var msgs []redis.XMessage
+
 		select {
 		case <-ctx.Done():
 			w.logger.Info("Shutting down. Flushing final batch with timeout...")
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), w.shutdownTimeout)
-			defer cancel()
 			w.flush(shutdownCtx, batch, pendingMsgIDs)
-			return
+			cancel()
+			return ctx.Err()
 
 		case <-ticker.C:
 			pendingMsgIDs = w.flush(ctx, batch, pendingMsgIDs)
+			continue
 
 		default:
+			lastID := ">"
+			if readOld {
+				lastID = "0"
+			}
+
+			msgs = w.fetchMessages(ctx, lastID)
+
+			if readOld && len(msgs) == 0 {
+				readOld = false
+				continue
+			}
 		}
 
-		lastID := ">"
-		if readOld {
-			lastID = "0"
-		}
-
-		msgs := w.fetchMessages(ctx, lastID)
-
-		if readOld && len(msgs) == 0 {
-			readOld = false
+		if len(msgs) == 0 {
 			continue
 		}
 
 		var retryMap map[string]int64
 		if readOld && len(msgs) >= bulkThreshold {
-			pending, err := w.redisClient.XPendingExt(ctx, &redis.XPendingExtArgs{
+			pending, pErr := w.redisClient.XPendingExt(ctx, &redis.XPendingExtArgs{
 				Stream: streamName,
 				Group:  groupName,
 				Start:  "-",
@@ -104,7 +116,7 @@ func (w *InteractionWorker) Start(ctx context.Context) {
 				Count:  int64(len(msgs)),
 			}).Result()
 
-			if err == nil {
+			if pErr == nil {
 				retryMap = make(map[string]int64)
 				for _, p := range pending {
 					retryMap[p.ID] = p.RetryCount
@@ -118,14 +130,14 @@ func (w *InteractionWorker) Start(ctx context.Context) {
 				if retryMap != nil {
 					rCount = retryMap[msg.ID]
 				} else {
-					p, err := w.redisClient.XPendingExt(ctx, &redis.XPendingExtArgs{
+					p, pErr := w.redisClient.XPendingExt(ctx, &redis.XPendingExtArgs{
 						Stream: streamName,
 						Group:  groupName,
 						Start:  msg.ID,
 						End:    msg.ID,
 						Count:  1,
 					}).Result()
-					if err == nil && len(p) > 0 {
+					if pErr == nil && len(p) > 0 {
 						rCount = p[0].RetryCount
 					}
 				}
