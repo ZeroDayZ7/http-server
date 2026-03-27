@@ -4,13 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/zerodayz7/http-server/internal/shared/logger"
+	"golang.org/x/sync/singleflight"
 )
 
 type InteractionService struct {
-	repo      InteractionRepository
-	cache     InteractionCache
-	publisher EventPublisher
-	identity  IdentityService
+	repo         InteractionRepository
+	cache        InteractionCache
+	publisher    EventPublisher
+	identity     IdentityService
+	log          logger.Logger
+	requestGroup singleflight.Group
 }
 
 func NewInteractionService(
@@ -18,12 +23,14 @@ func NewInteractionService(
 	cache InteractionCache,
 	publisher EventPublisher,
 	identity IdentityService,
+	log logger.Logger,
 ) *InteractionService {
 	return &InteractionService{
 		repo:      repo,
 		cache:     cache,
 		publisher: publisher,
 		identity:  identity,
+		log:       log,
 	}
 }
 
@@ -66,57 +73,55 @@ func (s *InteractionService) HandleInteraction(ctx context.Context, fp string, t
 }
 
 func (s *InteractionService) GetStats(ctx context.Context, fp string) (*StatsResponse, error) {
-	likes, err := s.getGlobalCount(ctx, TypeLike)
-	if err != nil {
-		return nil, err
+	likes, hasLikes := s.cache.GetGlobalCount(ctx, TypeLike)
+	dislikes, hasDislikes := s.cache.GetGlobalCount(ctx, TypeDislike)
+	visits, hasVisits := s.cache.GetGlobalCount(ctx, TypeVisit)
+
+	if !hasLikes || !hasDislikes || !hasVisits {
+		v, err, shared := s.requestGroup.Do("get_global_stats", func() (interface{}, error) {
+			s.log.Infow("Cache miss, fetching from DB (SingleFlight leader)",
+				"hasLikes", hasLikes, "hasDislikes", hasDislikes, "hasVisits", hasVisits)
+
+			dbLikes, dbDislikes, dbVisits, err := s.repo.GetStats(ctx)
+			if err != nil {
+				return nil, err
+			}
+
+			s.cache.SetGlobalCount(ctx, TypeLike, dbLikes, GlobalStatsTTL)
+			s.cache.SetGlobalCount(ctx, TypeDislike, dbDislikes, GlobalStatsTTL)
+			s.cache.SetGlobalCount(ctx, TypeVisit, dbVisits, GlobalStatsTTL)
+
+			return []int64{dbLikes, dbDislikes, dbVisits}, nil
+		})
+
+		if err != nil {
+			s.log.Errorw("Failed to fetch stats from repository via singleflight", "err", err)
+		} else {
+			res := v.([]int64)
+			likes, dislikes, visits = res[0], res[1], res[2]
+
+			if shared {
+				s.log.Debugw("Result shared via singleflight", "fp", fp)
+			}
+		}
 	}
 
-	dislikes, err := s.getGlobalCount(ctx, TypeDislike)
+	val, foundChoice, err := s.cache.GetUserChoice(ctx, fp)
 	if err != nil {
-		return nil, err
-	}
-
-	visits, err := s.getGlobalCount(ctx, TypeVisit)
-	if err != nil {
-		return nil, err
-	}
-
-	val, err := s.cache.GetUserChoice(ctx, fp)
-	if err != nil {
-		val = ""
+		s.log.Warnw("Redis GetUserChoice failed", "fp", fp, "err", err)
 	}
 
 	var choicePtr *string
-	allowed := true
-
-	if val != "" {
+	if foundChoice && val != "" {
 		choicePtr = &val
-		allowed = false
 	}
 
 	return &StatsResponse{
 		Likes:      likes,
 		Dislikes:   dislikes,
 		Visits:     visits,
-		Allowed:    allowed,
+		Allowed:    !foundChoice,
 		UserChoice: choicePtr,
 		Message:    "Success",
 	}, nil
-}
-
-func (s *InteractionService) getGlobalCount(ctx context.Context, typ string) (int, error) {
-	if val, ok := s.cache.GetGlobalCount(ctx, typ); ok {
-		return val, nil
-	}
-
-	count, err := s.repo.GetCount(ctx, typ)
-	if err != nil {
-		return 0, fmt.Errorf("db get count failed (%s): %w", typ, err)
-	}
-
-	if err := s.cache.SetGlobalCount(ctx, typ, count, GlobalStatsTTL); err != nil {
-		return count, nil
-	}
-
-	return count, nil
 }

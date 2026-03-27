@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/zerodayz7/http-server/config/env"
 	"github.com/zerodayz7/http-server/internal/shared/logger"
 	"go.uber.org/zap"
 )
 
 // InitRedis przyjmuje teraz config i logger jako jawne zależności
-func InitRedis(ctx context.Context, cfg RedisConfig, log logger.Logger) (*redis.Client, error) {
+func InitRedis(ctx context.Context, cfg env.RedisConfig, log logger.Logger) (*redis.Client, error) {
 	var addr string
 	var network string
 

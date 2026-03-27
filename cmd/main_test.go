@@ -7,15 +7,15 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
-	"github.com/zerodayz7/http-server/config"
+	"github.com/zerodayz7/http-server/config/env"
 	"github.com/zerodayz7/http-server/internal/router"
 	"github.com/zerodayz7/http-server/internal/shared/logger" // Import loggera
 )
 
 func TestHealthRoute(t *testing.T) {
 	// 1. Tworzymy atrapę konfiguracji
-	cfg := &config.Config{
-		RateLimit: config.RateLimitConfig{ // Użyj właściwego typu z pakietu config
+	cfg := &env.Config{
+		RateLimit: env.RateLimitConfig{ // Użyj właściwego typu z pakietu config
 			Max:    100,
 			Window: 60 * time.Second,
 		},

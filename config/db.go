@@ -7,11 +7,12 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/zerodayz7/http-server/config/env"
 	"github.com/zerodayz7/http-server/internal/shared/logger"
 	"go.uber.org/zap"
 )
 
-func InitDB(ctx context.Context, cfg DBConfig, log logger.Logger) (*sql.DB, error) {
+func InitDB(ctx context.Context, cfg env.DBConfig, log logger.Logger) (*sql.DB, error) {
 	dsn := fmt.Sprintf(
 		"%s:%s@tcp(%s:%s)/%s?parseTime=true&multiStatements=true",
 		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName,

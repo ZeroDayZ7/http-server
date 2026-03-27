@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/wire"
 	"github.com/redis/go-redis/v9"
-	"github.com/zerodayz7/http-server/config"
+	"github.com/zerodayz7/http-server/config/env"
 	"github.com/zerodayz7/http-server/internal/db"
 	"github.com/zerodayz7/http-server/internal/handler"
 	intRedis "github.com/zerodayz7/http-server/internal/redis"
@@ -22,41 +22,37 @@ import (
 func InitializeInteractionModule(
 	sqlDB *sql.DB,
 	redisClient *redis.Client,
-	cfg *config.Config,
+	cfg *env.Config,
 	log logger.Logger,
 ) (*InteractionModule, error) {
 	panic(wire.Build(
-		// 1. Wyciąganie pól z configu
-		wire.FieldsOf(new(*config.Config), "FingerprintSalt"),
+		wire.FieldsOf(new(*env.Config), "FingerprintSalt"),
 
-		// 2. Baza danych
+		// FIX 1: Mapowanie *sql.DB na db.DBTX (wymagane przez SQLc)
 		wire.Bind(new(db.DBTX), new(*sql.DB)),
 		db.New,
 
-		// 3. Repozytoria (MySQL)
+		// Repozytorium MySQL
 		mysqlrepo.NewInteractionRepository,
 		wire.Bind(new(service.InteractionRepository), new(*mysqlrepo.MySQLInteractionRepo)),
-		wire.Bind(new(worker.InteractionRepository), new(*mysqlrepo.MySQLInteractionRepo)),
 
-		// 4. Cache (Redis)
+		// Cache Redis
 		redisrepo.NewRedisInteractionCache,
 		wire.Bind(new(service.InteractionCache), new(*redisrepo.RedisInteractionCache)),
 
-		// 5. Eventy (Producer)
+		// Events
 		intRedis.NewStreamProducer,
 		wire.Bind(new(service.EventPublisher), new(*intRedis.StreamProducer)),
 
-		// 6. Serwisy
+		// Serwisy
 		service.NewIdentityService,
 		service.NewInteractionService,
-		// TO POŁĄCZENIE JEST KLUCZOWE:
 		wire.Bind(new(service.InteractionServiceInterface), new(*service.InteractionService)),
 
-		// 7. Handler i Worker
+		// Handler & Worker
 		handler.NewInteractionHandler,
 		worker.NewInteractionWorker,
 
-		// 8. Finalny moduł
 		NewInteractionModule,
 	))
 }

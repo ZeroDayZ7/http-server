@@ -25,8 +25,7 @@ func (r *RedisInteractionCache) TryRecordVisit(ctx context.Context, fp string, c
 	limitKey := r.keys.VisitCooldown(fp)
 	statsKey := r.keys.GlobalStats(service.TypeVisit)
 
-	// Pass cooldown in milliseconds to Lua script
-	res, err := redisinternal.DefaultScripts.Visit.Run(
+	res, err := redisinternal.DefaultScripts.RecordVisit.Run(
 		ctx, r.client, []string{limitKey, statsKey}, int(cooldown.Milliseconds()),
 	).Int()
 
@@ -37,22 +36,28 @@ func (r *RedisInteractionCache) TryRecordInteraction(ctx context.Context, fp str
 	cooldownKey := r.keys.UserInteraction(fp)
 	statsKey := r.keys.GlobalStats(typ)
 
-	res, err := redisinternal.DefaultScripts.Interaction.Run(
+	res, err := redisinternal.DefaultScripts.RecordInteraction.Run(
 		ctx, r.client, []string{cooldownKey, statsKey}, int(cooldown.Milliseconds()),
 	).Int()
 
 	return res == 1, err
 }
 
-func (r *RedisInteractionCache) GetGlobalCount(ctx context.Context, typ string) (int, bool) {
-	val, err := r.client.Get(ctx, r.keys.GlobalStats(typ)).Int()
+func (r *RedisInteractionCache) GetGlobalCount(ctx context.Context, typ string) (int64, bool) {
+	val, err := r.client.Get(ctx, r.keys.GlobalStats(typ)).Int64()
 	return val, err == nil
 }
 
-func (r *RedisInteractionCache) SetGlobalCount(ctx context.Context, typ string, count int, ttl time.Duration) error {
+func (r *RedisInteractionCache) SetGlobalCount(ctx context.Context, typ string, count int64, ttl time.Duration) error {
 	return r.client.Set(ctx, r.keys.GlobalStats(typ), count, ttl).Err()
 }
-
-func (r *RedisInteractionCache) GetUserChoice(ctx context.Context, fp string) (string, error) {
-	return r.client.Get(ctx, r.keys.UserInteraction(fp)).Result()
+func (r *RedisInteractionCache) GetUserChoice(ctx context.Context, fp string) (string, bool, error) {
+	val, err := r.client.Get(ctx, r.keys.UserInteraction(fp)).Result()
+	if err == redis.Nil {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return val, true, nil
 }

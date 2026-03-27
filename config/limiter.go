@@ -5,10 +5,11 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
+	"github.com/zerodayz7/http-server/config/env"
 	"github.com/zerodayz7/http-server/internal/errors"
 )
 
-func NewLimiter(cfg *Config, group string) fiber.Handler {
+func NewLimiter(cfg *env.Config, group string) fiber.Handler {
 	presets := map[string]struct {
 		Max    int
 		Window time.Duration

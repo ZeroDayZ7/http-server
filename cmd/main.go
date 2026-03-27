@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/zerodayz7/http-server/config"
 	"github.com/zerodayz7/http-server/internal/di"
@@ -59,8 +58,7 @@ func main() {
 
 	g, gCtx := errgroup.WithContext(ctx)
 
-	// --- TUTAJ BYŁ BŁĄD ---
-	// Dodajemy 'log' jako drugi argument do NewFiberApp
+	// Dodajemy 'log'
 	app := config.NewFiberApp(cfg, log)
 
 	// Upewnij się, że SetupRoutes też ma 'log'
@@ -83,8 +81,10 @@ func main() {
 	// Graceful Shutdown
 	g.Go(func() error {
 		<-gCtx.Done()
-		log.Info("Shutting down services...")
-		return app.ShutdownWithTimeout(10 * time.Second)
+		log.Info("Shutting down services...",
+			zap.Duration("timeout", cfg.Shutdown),
+		)
+		return app.ShutdownWithTimeout(cfg.Shutdown)
 	})
 
 	if err := g.Wait(); err != nil {

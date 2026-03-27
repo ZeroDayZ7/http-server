@@ -6,16 +6,17 @@ import (
 )
 
 type InteractionRepository interface {
-	GetCount(ctx context.Context, typ string) (int, error)
 	Increment(ctx context.Context, typ string) error
+	IncrementBy(ctx context.Context, typ string, amount int64) error
+	GetStats(ctx context.Context) (likes int64, dislikes int64, visits int64, err error)
 }
 
 type InteractionCache interface {
 	TryRecordVisit(ctx context.Context, fp string, cooldown time.Duration) (bool, error)
 	TryRecordInteraction(ctx context.Context, fp string, typ string, cooldown time.Duration) (bool, error)
-	GetGlobalCount(ctx context.Context, typ string) (int, bool)
-	SetGlobalCount(ctx context.Context, typ string, count int, ttl time.Duration) error
-	GetUserChoice(ctx context.Context, fp string) (string, error)
+	GetGlobalCount(ctx context.Context, typ string) (int64, bool)
+	SetGlobalCount(ctx context.Context, typ string, count int64, ttl time.Duration) error
+	GetUserChoice(ctx context.Context, fp string) (string, bool, error)
 }
 
 type EventPublisher interface {
@@ -27,4 +28,8 @@ type InteractionServiceInterface interface {
 	ProcessInitialVisit(ctx context.Context, fp string) (*StatsResponse, error)
 	HandleInteraction(ctx context.Context, fp string, typ string) (*StatsResponse, error)
 	GetStats(ctx context.Context, fp string) (*StatsResponse, error)
+}
+
+type IdentityService interface {
+	GenerateFingerprint(ip, ua, lang string) string
 }

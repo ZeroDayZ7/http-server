@@ -9,8 +9,9 @@ import (
 )
 
 type Querier interface {
-	GetCountByType(ctx context.Context, type_ string) (int64, error)
-	IncrementCounter(ctx context.Context, type_ string) error
+	GetStats(ctx context.Context) (GetStatsRow, error)
+	IncrementStat(ctx context.Context, type_ string) error
+	IncrementStatByAmount(ctx context.Context, arg IncrementStatByAmountParams) error
 }
 
 var _ Querier = (*Queries)(nil)

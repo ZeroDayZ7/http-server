@@ -12,10 +12,10 @@ const (
 )
 
 type StatsResponse struct {
-	Likes      int     `json:"likes"`
-	Dislikes   int     `json:"dislikes"`
-	Visits     int     `json:"visits"`
+	Likes      int64   `json:"likes"`
+	Dislikes   int64   `json:"dislikes"`
+	Visits     int64   `json:"visits"`
 	Allowed    bool    `json:"allowed"`
-	UserChoice *string `json:"userChoice"`
+	UserChoice *string `json:"user_choice"`
 	Message    string  `json:"message"`
 }

@@ -5,10 +5,6 @@ import (
 	"encoding/hex"
 )
 
-type IdentityService interface {
-	GenerateFingerprint(ip, ua, lang string) string
-}
-
 type identityService struct {
 	salt string
 }

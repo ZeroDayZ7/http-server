@@ -8,38 +8,32 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-// zapLogger implementuje interfejs Logger
 type zapLogger struct {
 	*zap.Logger
 }
 
-// NewLogger to teraz Twój "Provider" dla Wire.
-// Przyjmuje env (np. z flag startowych lub zmiennej środowiskowej), aby wiedzieć jak się skonfigurować.
 func NewLogger(env string) Logger {
 	level := zap.DebugLevel
 	if env == "production" {
 		level = zap.InfoLevel
 	}
 
-	// Konfiguracja Konsoli
 	consoleEncoderConfig := zap.NewDevelopmentEncoderConfig()
 	if env == "production" {
 		consoleEncoderConfig = zap.NewProductionEncoderConfig()
 	}
 	consoleEncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 
-	// Konfiguracja Pliku (Lumberjack)
 	logFile := &lumberjack.Logger{
 		Filename:   "logs/app.log",
-		MaxSize:    10, // megabytes
+		MaxSize:    10,
 		MaxBackups: 5,
-		MaxAge:     7, // days
+		MaxAge:     7,
 		Compress:   true,
 	}
 
 	fileEncoderConfig := zap.NewProductionEncoderConfig()
 
-	// Tworzenie Core
 	consoleCore := zapcore.NewCore(
 		zapcore.NewConsoleEncoder(consoleEncoderConfig),
 		zapcore.AddSync(os.Stdout),
@@ -54,7 +48,6 @@ func NewLogger(env string) Logger {
 
 	core := zapcore.NewTee(consoleCore, fileCore)
 
-	// Tworzenie finalnej instancji zap.Logger
 	zapInst := zap.New(core,
 		zap.AddCaller(),
 		zap.AddStacktrace(zap.ErrorLevel),
@@ -62,8 +55,6 @@ func NewLogger(env string) Logger {
 
 	return &zapLogger{zapInst}
 }
-
-// --- Implementacja metod interfejsu Logger ---
 
 func (l *zapLogger) Info(msg string, fields ...zap.Field) {
 	l.Logger.Info(msg, fields...)
@@ -83,6 +74,26 @@ func (l *zapLogger) Error(msg string, fields ...zap.Field) {
 
 func (l *zapLogger) Fatal(msg string, fields ...zap.Field) {
 	l.Logger.Fatal(msg, fields...)
+}
+
+func (l *zapLogger) Infow(msg string, keysAndValues ...any) {
+	l.Logger.Sugar().Infow(msg, keysAndValues...)
+}
+
+func (l *zapLogger) Debugw(msg string, keysAndValues ...any) {
+	l.Logger.Sugar().Debugw(msg, keysAndValues...)
+}
+
+func (l *zapLogger) Warnw(msg string, keysAndValues ...any) {
+	l.Logger.Sugar().Warnw(msg, keysAndValues...)
+}
+
+func (l *zapLogger) Errorw(msg string, keysAndValues ...any) {
+	l.Logger.Sugar().Errorw(msg, keysAndValues...)
+}
+
+func (l *zapLogger) Fatalw(msg string, keysAndValues ...any) {
+	l.Logger.Sugar().Fatalw(msg, keysAndValues...)
 }
 
 func (l *zapLogger) InfoObj(msg string, obj any) {

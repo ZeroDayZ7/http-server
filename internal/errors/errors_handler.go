@@ -1,25 +1,24 @@
-package server
+package errors
 
 import (
 	stdErrors "errors"
 
 	"github.com/gofiber/fiber/v2"
-	apperrors "github.com/zerodayz7/http-server/internal/errors"
 	"github.com/zerodayz7/http-server/internal/shared/logger"
 	"go.uber.org/zap"
 )
 
 func ErrorHandler(log logger.Logger) fiber.ErrorHandler {
-	statusMap := map[apperrors.ErrorType]int{
-		apperrors.Validation:   fiber.StatusBadRequest,
-		apperrors.Unauthorized: fiber.StatusUnauthorized,
-		apperrors.NotFound:     fiber.StatusNotFound,
-		apperrors.Internal:     fiber.StatusInternalServerError,
-		apperrors.BadRequest:   fiber.StatusBadRequest,
+	statusMap := map[ErrorType]int{
+		Validation:   fiber.StatusBadRequest,
+		Unauthorized: fiber.StatusUnauthorized,
+		NotFound:     fiber.StatusNotFound,
+		Internal:     fiber.StatusInternalServerError,
+		BadRequest:   fiber.StatusBadRequest,
 	}
 
 	return func(c *fiber.Ctx, err error) error {
-		var appErr *apperrors.AppError
+		var appErr *AppError
 
 		if stdErrors.As(err, &appErr) {
 			status, ok := statusMap[appErr.Type]
@@ -65,7 +64,7 @@ func ErrorHandler(log logger.Logger) fiber.ErrorHandler {
 			zap.String("method", c.Method()),
 		)
 
-		internal := apperrors.ErrInternal.WithErr(err)
+		internal := ErrInternal.WithErr(err)
 
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"code":    internal.Code,

@@ -5,9 +5,10 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/zerodayz7/http-server/config"
+	"github.com/zerodayz7/http-server/config/env"
 )
 
-func SetupHealthRoutes(app *fiber.App, cfg *config.Config) {
+func SetupHealthRoutes(app *fiber.App, cfg *env.Config) {
 	health := app.Group("/health")
 
 	health.Use(config.NewLimiter(cfg, "health"))

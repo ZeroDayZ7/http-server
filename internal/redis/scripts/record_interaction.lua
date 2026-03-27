@@ -1,8 +1,10 @@
+-- keys: cooldownKey, statsKey
+-- argv: cooldownTTL (ms)
 local cooldownKey = KEYS[1]
 local statsKey = KEYS[2]
-local ttl = ARGV[1]
+local ttl = tonumber(ARGV[1])
 
--- SETNX = atomowe sprawdzenie + ustawienie
+-- atomowe SETNX + PEXPIRE + INCR
 if redis.call("SETNX", cooldownKey, "1") == 1 then
     redis.call("PEXPIRE", cooldownKey, ttl)
     redis.call("INCR", statsKey)

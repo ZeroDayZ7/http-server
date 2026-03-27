@@ -7,13 +7,14 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
-	"github.com/zerodayz7/http-server/internal/server"
+	"github.com/zerodayz7/http-server/config/env"
+	"github.com/zerodayz7/http-server/internal/errors"
 	"github.com/zerodayz7/http-server/internal/shared"
-	"github.com/zerodayz7/http-server/internal/shared/logger" // Import loggera
+	"github.com/zerodayz7/http-server/internal/shared/logger"
 )
 
 // NewFiberApp teraz przyjmuje również log
-func NewFiberApp(cfg *Config, log logger.Logger) *fiber.App {
+func NewFiberApp(cfg *env.Config, log logger.Logger) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ProxyHeader:             fiber.HeaderXForwardedFor,
 		EnableTrustedProxyCheck: true,
@@ -32,7 +33,7 @@ func NewFiberApp(cfg *Config, log logger.Logger) *fiber.App {
 
 		RequestMethods: []string{"GET", "POST", "OPTIONS", "HEAD"},
 		// Przekazujemy log do ErrorHandlera
-		ErrorHandler: server.ErrorHandler(log),
+		ErrorHandler: errors.ErrorHandler(log),
 	})
 
 	app.Use(requestid.New())

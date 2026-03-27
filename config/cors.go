@@ -2,9 +2,10 @@ package config
 
 import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/zerodayz7/http-server/config/env"
 )
 
-func CorsConfig(cfg *Config) cors.Config {
+func CorsConfig(cfg *env.Config) cors.Config {
 	return cors.Config{
 		AllowOrigins:     cfg.CORSAllow,
 		AllowMethods:     cfg.CORSMethods,

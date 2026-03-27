@@ -9,25 +9,50 @@ import (
 	"context"
 )
 
-const getCountByType = `-- name: GetCountByType :one
-SELECT current_count FROM interaction_stats 
-WHERE type = ?
+const getStats = `-- name: GetStats :one
+SELECT 
+    CAST(COALESCE(SUM(CASE WHEN type = 'visit' THEN current_count ELSE 0 END), 0) AS SIGNED) as visits,
+    CAST(COALESCE(SUM(CASE WHEN type = 'like' THEN current_count ELSE 0 END), 0) AS SIGNED) as likes,
+    CAST(COALESCE(SUM(CASE WHEN type = 'dislike' THEN current_count ELSE 0 END), 0) AS SIGNED) as dislikes
+FROM interaction_stats
 `
 
-func (q *Queries) GetCountByType(ctx context.Context, type_ string) (int64, error) {
-	row := q.db.QueryRowContext(ctx, getCountByType, type_)
-	var current_count int64
-	err := row.Scan(&current_count)
-	return current_count, err
+type GetStatsRow struct {
+	Visits   int64 `json:"visits"`
+	Likes    int64 `json:"likes"`
+	Dislikes int64 `json:"dislikes"`
 }
 
-const incrementCounter = `-- name: IncrementCounter :exec
-UPDATE interaction_stats 
-SET current_count = current_count + 1 
-WHERE type = ?
+func (q *Queries) GetStats(ctx context.Context) (GetStatsRow, error) {
+	row := q.db.QueryRowContext(ctx, getStats)
+	var i GetStatsRow
+	err := row.Scan(&i.Visits, &i.Likes, &i.Dislikes)
+	return i, err
+}
+
+const incrementStat = `-- name: IncrementStat :exec
+INSERT INTO interaction_stats (type, current_count)
+VALUES (?, 1)
+ON DUPLICATE KEY UPDATE current_count = current_count + 1
 `
 
-func (q *Queries) IncrementCounter(ctx context.Context, type_ string) error {
-	_, err := q.db.ExecContext(ctx, incrementCounter, type_)
+func (q *Queries) IncrementStat(ctx context.Context, type_ string) error {
+	_, err := q.db.ExecContext(ctx, incrementStat, type_)
+	return err
+}
+
+const incrementStatByAmount = `-- name: IncrementStatByAmount :exec
+INSERT INTO interaction_stats (type, current_count)
+VALUES (?, ?)
+ON DUPLICATE KEY UPDATE current_count = current_count + VALUES(current_count)
+`
+
+type IncrementStatByAmountParams struct {
+	Type         string `json:"type"`
+	CurrentCount int64  `json:"current_count"`
+}
+
+func (q *Queries) IncrementStatByAmount(ctx context.Context, arg IncrementStatByAmountParams) error {
+	_, err := q.db.ExecContext(ctx, incrementStatByAmount, arg.Type, arg.CurrentCount)
 	return err
 }

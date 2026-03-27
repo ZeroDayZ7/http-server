@@ -6,23 +6,27 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// Scripts przechowuje wszystkie skrypty Lua
 type Scripts struct {
-	Visit       *redis.Script
-	Interaction *redis.Script
-	Stats       *redis.Script
+	GetStats          *redis.Script
+	RecordInteraction *redis.Script
+	RecordVisit       *redis.Script
 }
 
+// Embedujemy skrypty
+//
+//go:embed scripts/get_stats.lua
+var getStatsScript string
+
+//go:embed scripts/record_interaction.lua
+var recordInteractionScript string
+
 //go:embed scripts/visit.lua
-var visitScript string
+var recordVisitScript string
 
-//go:embed scripts/interaction.lua
-var interactionScript string
-
-//go:embed scripts/stats.lua
-var statsScript string
-
-var DefaultScripts = Scripts{
-	Visit:       redis.NewScript(visitScript),
-	Interaction: redis.NewScript(interactionScript),
-	Stats:       redis.NewScript(statsScript),
+// DefaultScripts - gotowy zestaw skryptów
+var DefaultScripts = &Scripts{
+	GetStats:          redis.NewScript(getStatsScript),
+	RecordInteraction: redis.NewScript(recordInteractionScript),
+	RecordVisit:       redis.NewScript(recordVisitScript),
 }

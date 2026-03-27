@@ -2,7 +2,7 @@ package router
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/zerodayz7/http-server/config"
+	"github.com/zerodayz7/http-server/config/env"
 	"github.com/zerodayz7/http-server/internal/handler"
 	"github.com/zerodayz7/http-server/internal/shared/logger"
 )
@@ -10,7 +10,7 @@ import (
 func SetupRoutes(
 	app *fiber.App,
 	interactionHandler *handler.InteractionHandler,
-	cfg *config.Config,
+	cfg *env.Config,
 	log logger.Logger,
 ) {
 	SetupHealthRoutes(app, cfg)
