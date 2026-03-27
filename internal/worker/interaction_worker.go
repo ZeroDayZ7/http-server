@@ -14,26 +14,40 @@ import (
 )
 
 const (
+	// Redis Stream configuration for interaction events
 	streamName = "interaction_events"
+	dlqStream  = "interaction_events_dlq" // Dead Letter Queue for failed messages
 	groupName  = "interaction_workers"
+
+	// Retry logic and failure handling
+	maxRetries = 5 // Number of processing attempts before moving a message to DLQ
+
+	// Performance and batching thresholds
+	bulkThreshold  = 50               // Message count trigger to switch from individual to bulk status checks
+	flushInterval  = 10 * time.Second // Maximum time to wait before forcing a database synchronization
+	readBlockTime  = 2 * time.Second
+	batchSizeLimit = 100 // Batch size threshold that triggers an immediate flush to DB
+	readBatchSize  = 10  // Number of messages to pull from Redis in a single XReadGroup call
 )
 
 type InteractionWorker struct {
-	redisClient *redis.Client
-	repo        service.InteractionRepository
-	consumerID  string
-	logger      logger.Logger
+	redisClient     *redis.Client
+	repo            service.InteractionRepository
+	consumerID      string
+	logger          logger.Logger
+	shutdownTimeout time.Duration
 }
 
-func NewInteractionWorker(redisClient *redis.Client, repo service.InteractionRepository, log logger.Logger) *InteractionWorker {
+func NewInteractionWorker(redisClient *redis.Client, repo service.InteractionRepository, log logger.Logger, timeout time.Duration) *InteractionWorker {
 	id := "worker-" + uuid.NewString()
 	log.Info("Creating worker instance", zap.String("worker_id", id))
 
 	return &InteractionWorker{
-		redisClient: redisClient,
-		repo:        repo,
-		consumerID:  id,
-		logger:      log,
+		redisClient:     redisClient,
+		repo:            repo,
+		consumerID:      id,
+		logger:          log,
+		shutdownTimeout: timeout,
 	}
 }
 
@@ -44,64 +58,121 @@ func (w *InteractionWorker) Start(ctx context.Context) {
 		}
 	}()
 
-	w.logger.Info("Interaction worker started (safe batching)")
+	w.logger.Info("Interaction worker started", zap.String("id", w.consumerID))
 
-	// ZMIANA TUTAJ: int na int64
 	batch := make(map[string]int64)
 	var pendingMsgIDs []string
-
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(flushInterval)
 	defer ticker.Stop()
+
+	readOld := true
 
 	for {
 		select {
 		case <-ctx.Done():
-			w.logger.Info("Shutting down. Flushing final batch...")
-			w.flush(context.Background(), batch, pendingMsgIDs)
+			w.logger.Info("Shutting down. Flushing final batch with timeout...")
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), w.shutdownTimeout)
+			defer cancel()
+			w.flush(shutdownCtx, batch, pendingMsgIDs)
 			return
 
 		case <-ticker.C:
 			pendingMsgIDs = w.flush(ctx, batch, pendingMsgIDs)
 
 		default:
-			msgs := w.fetchMessages(ctx)
-			if msgs == nil {
-				continue
-			}
+		}
 
-			for _, msg := range msgs {
-				eventType := w.safeString(msg.Values["type"])
-				if eventType != "" {
-					batch[eventType]++
-					pendingMsgIDs = append(pendingMsgIDs, msg.ID)
-				} else {
-					w.ackMessage(ctx, msg.ID)
+		lastID := ">"
+		if readOld {
+			lastID = "0"
+		}
+
+		msgs := w.fetchMessages(ctx, lastID)
+
+		if readOld && len(msgs) == 0 {
+			readOld = false
+			continue
+		}
+
+		var retryMap map[string]int64
+		if readOld && len(msgs) >= bulkThreshold {
+			pending, err := w.redisClient.XPendingExt(ctx, &redis.XPendingExtArgs{
+				Stream: streamName,
+				Group:  groupName,
+				Start:  "-",
+				End:    "+",
+				Count:  int64(len(msgs)),
+			}).Result()
+
+			if err == nil {
+				retryMap = make(map[string]int64)
+				for _, p := range pending {
+					retryMap[p.ID] = p.RetryCount
 				}
 			}
+		}
+
+		for _, msg := range msgs {
+			if readOld {
+				var rCount int64
+				if retryMap != nil {
+					rCount = retryMap[msg.ID]
+				} else {
+					p, err := w.redisClient.XPendingExt(ctx, &redis.XPendingExtArgs{
+						Stream: streamName,
+						Group:  groupName,
+						Start:  msg.ID,
+						End:    msg.ID,
+						Count:  1,
+					}).Result()
+					if err == nil && len(p) > 0 {
+						rCount = p[0].RetryCount
+					}
+				}
+
+				if rCount > int64(maxRetries) {
+					w.logger.Error("Message exceeded max retries, moving to DLQ",
+						zap.String("msg_id", msg.ID),
+						zap.Int64("retries", rCount),
+					)
+					w.moveToDLQ(ctx, msg)
+					continue
+				}
+			}
+
+			eventType := w.safeString(msg.Values["type"])
+			if eventType != "" {
+				batch[eventType]++
+				pendingMsgIDs = append(pendingMsgIDs, msg.ID)
+			} else {
+				w.ackMessage(ctx, msg.ID)
+			}
+		}
+
+		if len(pendingMsgIDs) >= batchSizeLimit {
+			pendingMsgIDs = w.flush(ctx, batch, pendingMsgIDs)
 		}
 	}
 }
 
-func (w *InteractionWorker) fetchMessages(ctx context.Context) []redis.XMessage {
+func (w *InteractionWorker) fetchMessages(ctx context.Context, lastID string) []redis.XMessage {
 	streams, err := w.redisClient.XReadGroup(ctx, &redis.XReadGroupArgs{
 		Group:    groupName,
 		Consumer: w.consumerID,
-		Streams:  []string{streamName, ">"},
-		Count:    10,
-		Block:    2 * time.Second,
+		Streams:  []string{streamName, lastID},
+		Count:    readBatchSize,
+		Block:    readBlockTime,
 	}).Result()
 
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return nil
 		}
-
 		if strings.Contains(err.Error(), "NOGROUP") {
-			w.logger.Warn("Redis group/stream missing, recreating...")
+			w.logger.Warn("Redis group missing, recreating...")
 			w.redisClient.XGroupCreateMkStream(ctx, streamName, groupName, "0")
 			return nil
 		}
-
 		w.logger.Error("XReadGroup failed", zap.Error(err))
 		time.Sleep(time.Second)
 		return nil
@@ -110,7 +181,6 @@ func (w *InteractionWorker) fetchMessages(ctx context.Context) []redis.XMessage 
 	if len(streams) > 0 {
 		return streams[0].Messages
 	}
-
 	return nil
 }
 
@@ -146,6 +216,21 @@ func (w *InteractionWorker) flush(ctx context.Context, batch map[string]int64, m
 	}
 
 	return nil
+}
+
+func (w *InteractionWorker) moveToDLQ(ctx context.Context, msg redis.XMessage) {
+	w.logger.Warn("Moving message to DLQ", zap.String("msg_id", msg.ID))
+
+	err := w.redisClient.XAdd(ctx, &redis.XAddArgs{
+		Stream: dlqStream,
+		Values: msg.Values,
+	}).Err()
+
+	if err != nil {
+		w.logger.Error("Failed to move to DLQ", zap.Error(err))
+	}
+
+	w.ackMessage(ctx, msg.ID)
 }
 
 func (w *InteractionWorker) ackMessage(ctx context.Context, msgID string) {

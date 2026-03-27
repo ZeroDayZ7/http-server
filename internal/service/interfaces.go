@@ -8,7 +8,7 @@ import (
 type InteractionRepository interface {
 	Increment(ctx context.Context, typ string) error
 	IncrementBy(ctx context.Context, typ string, amount int64) error
-	GetStats(ctx context.Context) (likes int64, dislikes int64, visits int64, err error)
+	GetStats(ctx context.Context) (InteractionStatsDTO, error)
 }
 
 type InteractionCache interface {

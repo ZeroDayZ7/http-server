@@ -26,7 +26,7 @@ func InitializeInteractionModule(
 	log logger.Logger,
 ) (*InteractionModule, error) {
 	panic(wire.Build(
-		wire.FieldsOf(new(*env.Config), "FingerprintSalt"),
+		wire.FieldsOf(new(*env.Config), "FingerprintSalt", "Shutdown"),
 
 		// FIX 1: Mapowanie *sql.DB na db.DBTX (wymagane przez SQLc)
 		wire.Bind(new(db.DBTX), new(*sql.DB)),

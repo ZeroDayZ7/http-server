@@ -19,3 +19,9 @@ type StatsResponse struct {
 	UserChoice *string `json:"user_choice"`
 	Message    string  `json:"message"`
 }
+
+type InteractionStatsDTO struct {
+	Likes    int64
+	Dislikes int64
+	Visits   int64
+}

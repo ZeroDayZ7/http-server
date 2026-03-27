@@ -31,7 +31,8 @@ func InitializeInteractionModule(sqlDB *sql.DB, redisClient *redis.Client, cfg *
 	identityService := service.NewIdentityService(string2)
 	interactionService := service.NewInteractionService(mySQLInteractionRepo, redisInteractionCache, streamProducer, identityService, log)
 	interactionHandler := handler.NewInteractionHandler(interactionService)
-	interactionWorker := worker.NewInteractionWorker(redisClient, mySQLInteractionRepo, log)
+	duration := cfg.Shutdown
+	interactionWorker := worker.NewInteractionWorker(redisClient, mySQLInteractionRepo, log, duration)
 	interactionModule := NewInteractionModule(interactionHandler, interactionWorker)
 	return interactionModule, nil
 }

@@ -14,7 +14,7 @@ import (
 
 func InitDB(ctx context.Context, cfg env.DBConfig, log logger.Logger) (*sql.DB, error) {
 	dsn := fmt.Sprintf(
-		"%s:%s@tcp(%s:%s)/%s?parseTime=true&multiStatements=true",
+		"%s:%s@tcp(%s:%s)/%s?parseTime=true",
 		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName,
 	)
 

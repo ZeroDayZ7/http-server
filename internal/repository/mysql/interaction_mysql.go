@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/zerodayz7/http-server/internal/db"
+	"github.com/zerodayz7/http-server/internal/service"
 )
 
 type MySQLInteractionRepo struct {
@@ -25,11 +26,16 @@ func (r *MySQLInteractionRepo) IncrementBy(ctx context.Context, typ string, amou
 	})
 }
 
-func (r *MySQLInteractionRepo) GetStats(ctx context.Context) (int64, int64, int64, error) {
+func (r *MySQLInteractionRepo) GetStats(ctx context.Context) (service.InteractionStatsDTO, error) {
 	row, err := r.q.GetStats(ctx)
 	if err != nil {
-		return 0, 0, 0, err
+		// Zwracamy pustą strukturę i błąd
+		return service.InteractionStatsDTO{}, err
 	}
 
-	return row.Likes, row.Dislikes, row.Visits, nil
+	return service.InteractionStatsDTO{
+		Likes:    row.Likes,
+		Dislikes: row.Dislikes,
+		Visits:   row.Visits,
+	}, nil
 }

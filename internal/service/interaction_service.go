@@ -82,23 +82,23 @@ func (s *InteractionService) GetStats(ctx context.Context, fp string) (*StatsRes
 			s.log.Infow("Cache miss, fetching from DB (SingleFlight leader)",
 				"hasLikes", hasLikes, "hasDislikes", hasDislikes, "hasVisits", hasVisits)
 
-			dbLikes, dbDislikes, dbVisits, err := s.repo.GetStats(ctx)
+			statsDTO, err := s.repo.GetStats(ctx)
 			if err != nil {
 				return nil, err
 			}
 
-			s.cache.SetGlobalCount(ctx, TypeLike, dbLikes, GlobalStatsTTL)
-			s.cache.SetGlobalCount(ctx, TypeDislike, dbDislikes, GlobalStatsTTL)
-			s.cache.SetGlobalCount(ctx, TypeVisit, dbVisits, GlobalStatsTTL)
+			s.cache.SetGlobalCount(ctx, TypeLike, statsDTO.Likes, GlobalStatsTTL)
+			s.cache.SetGlobalCount(ctx, TypeDislike, statsDTO.Dislikes, GlobalStatsTTL)
+			s.cache.SetGlobalCount(ctx, TypeVisit, statsDTO.Visits, GlobalStatsTTL)
 
-			return []int64{dbLikes, dbDislikes, dbVisits}, nil
+			return statsDTO, nil
 		})
 
 		if err != nil {
 			s.log.Errorw("Failed to fetch stats from repository via singleflight", "err", err)
 		} else {
-			res := v.([]int64)
-			likes, dislikes, visits = res[0], res[1], res[2]
+			res := v.(InteractionStatsDTO)
+			likes, dislikes, visits = res.Likes, res.Dislikes, res.Visits
 
 			if shared {
 				s.log.Debugw("Result shared via singleflight", "fp", fp)

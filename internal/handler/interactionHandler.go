@@ -28,7 +28,7 @@ func (h *InteractionHandler) getFP(c *fiber.Ctx) string {
 func (h *InteractionHandler) HandleVisit(c *fiber.Ctx) error {
 	fp := h.getFP(c)
 
-	stats, err := h.service.ProcessInitialVisit(c.Context(), fp)
+	stats, err := h.service.ProcessInitialVisit(c.UserContext(), fp)
 	if err != nil {
 		return apperrors.ErrInternal.WithErr(err)
 	}
@@ -41,7 +41,7 @@ func (h *InteractionHandler) HandleInteraction(c *fiber.Ctx) error {
 
 	body := c.Locals("validatedBody").(validator.InteractionRequest)
 
-	stats, err := h.service.HandleInteraction(c.Context(), fp, body.Type)
+	stats, err := h.service.HandleInteraction(c.UserContext(), fp, body.Type)
 	if err != nil {
 		return apperrors.ErrInvalidRequest.WithErr(err)
 	}
@@ -52,7 +52,7 @@ func (h *InteractionHandler) HandleInteraction(c *fiber.Ctx) error {
 func (h *InteractionHandler) GetStats(c *fiber.Ctx) error {
 	fp := h.getFP(c)
 
-	stats, err := h.service.GetStats(c.Context(), fp)
+	stats, err := h.service.GetStats(c.UserContext(), fp)
 	if err != nil {
 		return apperrors.ErrInternal.WithErr(err)
 	}
