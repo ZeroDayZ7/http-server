@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -36,11 +37,7 @@ func TestInteractionWorker_FullFlow(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6379",
-		Password: "devpassword",
-		DB:       0,
-	})
+	rdb := setupTestRedis(t)
 
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		t.Skipf("Redis unavailable: %v", err)
@@ -101,23 +98,18 @@ func TestInteractionWorker_DLQ_Flow(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6379",
-		Password: "devpassword",
-		DB:       0,
-	})
+	rdb := setupTestRedis(t)
 
 	mockRepo := new(MockInteractionRepo)
 
-	// FIX: Dodano 5-ty argument (flushInterval)
 	w := NewInteractionWorker(rdb, mockRepo, logger.NewNop(), 500*time.Millisecond, 200*time.Millisecond)
 
 	rdb.Del(ctx, streamName)
-	rdb.Del(ctx, dlqStream) // Czyścimy też DLQ przed testem
+	rdb.Del(ctx, dlqStream)
 
 	rdb.XAdd(ctx, &redis.XAddArgs{
 		Stream: streamName,
-		Values: map[string]interface{}{"garbage": "data"}, // błędne dane - trafią do DLQ
+		Values: map[string]interface{}{"garbage": "data"},
 	})
 
 	workerCtx, stop := context.WithCancel(ctx)
@@ -131,4 +123,29 @@ func TestInteractionWorker_DLQ_Flow(t *testing.T) {
 		res, err := rdb.XPending(ctx, streamName, groupName).Result()
 		return err == nil && res.Count == 0
 	}, 2*time.Second, 100*time.Millisecond)
+}
+
+func setupTestRedis(t *testing.T) *redis.Client {
+	host := os.Getenv("REDIS_HOST")
+	port := os.Getenv("REDIS_PORT")
+	addr := host + ":" + port
+
+	if host == "" || port == "" {
+		addr = "127.0.0.1:6379"
+	}
+
+	pass := os.Getenv("REDIS_PASSWORD")
+	if pass == "" {
+		pass = "devpassword"
+	}
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     addr,
+		Password: pass,
+		DB:       0,
+	})
+
+	t.Logf("Connecting to test Redis at %s", addr)
+
+	return rdb
 }
