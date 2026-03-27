@@ -46,15 +46,12 @@ func TestInteractionWorker_FullFlow(t *testing.T) {
 		t.Skipf("Redis unavailable: %v", err)
 	}
 
-	// Czyścimy środowisko
 	rdb.Del(ctx, streamName)
 	rdb.Del(ctx, dlqStream)
 
 	mockRepo := new(MockInteractionRepo)
 	log := logger.NewNop()
 
-	// FIX: Dodano 5-ty argument (flushInterval).
-	// 500ms shutdown timeout, 200ms flush interval dla szybkich testów.
 	w := NewInteractionWorker(rdb, mockRepo, log, 500*time.Millisecond, 200*time.Millisecond)
 
 	mockRepo.On("IncrementBy",
@@ -70,10 +67,8 @@ func TestInteractionWorker_FullFlow(t *testing.T) {
 		errChan <- w.Start(workerCtx)
 	}()
 
-	// Czekamy na gotowość
 	time.Sleep(200 * time.Millisecond)
 
-	// Produkcja eventów
 	events := []string{"like", "like", "view"}
 	for _, e := range events {
 		rdb.XAdd(ctx, &redis.XAddArgs{
@@ -82,7 +77,6 @@ func TestInteractionWorker_FullFlow(t *testing.T) {
 		})
 	}
 
-	// Czekamy na cykl flush (ustawiliśmy go na 200ms, więc 500ms wystarczy z zapasem)
 	time.Sleep(500 * time.Millisecond)
 	stopWorker()
 

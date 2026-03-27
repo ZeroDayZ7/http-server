@@ -2,8 +2,8 @@
   "files.exclude": {
     "**/go.sum": true,
     "**/.gitattributes": true,
-    "**/logs": true,
-    "**/LICENSE": true
+    "**/logs": true
+    // "**/LICENSE": true
   },
 
   "search.exclude": {
