@@ -71,13 +71,6 @@ func main() {
 		return app.Listen(":" + cfg.Server.Port)
 	})
 
-	// Worker
-	g.Go(func() error {
-		log.Info("Interaction worker starting")
-		module.Worker.Start(gCtx)
-		return nil
-	})
-
 	// Graceful Shutdown
 	g.Go(func() error {
 		<-gCtx.Done()

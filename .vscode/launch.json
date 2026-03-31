@@ -2,21 +2,38 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "HTTP Server Debug",
+      "name": "Run API (Fiber)",
       "type": "go",
       "request": "launch",
       "mode": "debug",
-      "program": "${workspaceFolder}/cmd/main.go",
-      "args": [],
+      "program": "${workspaceFolder}/cmd/api/main.go",
       "env": {
         "ENV": "development",
         "APP_ENV": "dev"
       },
       "envFile": "${workspaceFolder}/.env",
-      "buildFlags": "",
       "cwd": "${workspaceFolder}",
-      "showLog": false,
-      "output": "${workspaceFolder}/bin/server_debug.exe"
+      "output": "${workspaceFolder}/bin/api_debug.exe"
+    },
+    {
+      "name": "Run Worker (Redis)",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/cmd/worker/main.go",
+      "env": {
+        "ENV": "development",
+        "APP_ENV": "dev"
+      },
+      "envFile": "${workspaceFolder}/.env",
+      "cwd": "${workspaceFolder}",
+      "output": "${workspaceFolder}/bin/worker_debug.exe"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Run Both (API + Worker)",
+      "configurations": ["Run API (Fiber)", "Run Worker (Redis)"]
     }
   ]
 }
