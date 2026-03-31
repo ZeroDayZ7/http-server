@@ -29,7 +29,7 @@ func (r *MySQLInteractionRepo) IncrementBy(ctx context.Context, typ string, amou
 func (r *MySQLInteractionRepo) GetStats(ctx context.Context) (service.InteractionStatsDTO, error) {
 	row, err := r.q.GetStats(ctx)
 	if err != nil {
-		// Zwracamy pustą strukturę i błąd
+
 		return service.InteractionStatsDTO{}, err
 	}
 

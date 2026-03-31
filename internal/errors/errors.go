@@ -17,7 +17,7 @@ type AppError struct {
 	Type    ErrorType
 	Message string
 	Err     error
-	Meta    map[string]any // Pole zostaje jako Meta
+	Meta    map[string]any
 }
 
 func (e *AppError) Error() string {
@@ -27,11 +27,9 @@ func (e *AppError) Error() string {
 	return fmt.Sprintf("[%s] %s", e.Code, e.Message)
 }
 
-// Zmieniamy nazwę metody na WithDetail, aby nie gryzła się z polem Meta
 func (e *AppError) WithDetail(key string, value any) *AppError {
 	newErr := *e
 
-	// Tworzymy nową mapę, żeby nie mutować oryginału (bezpieczeństwo wątkowe)
 	newMeta := make(map[string]any)
 	for k, v := range e.Meta {
 		newMeta[k] = v
@@ -42,7 +40,6 @@ func (e *AppError) WithDetail(key string, value any) *AppError {
 	return &newErr
 }
 
-// Ta metoda pozwala wrzucić całą mapę na raz
 func (e *AppError) WithMeta(meta map[string]any) *AppError {
 	newErr := *e
 	newErr.Meta = meta

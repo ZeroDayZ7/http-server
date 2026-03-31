@@ -18,13 +18,11 @@ func SetupStatsRoutes(app *fiber.App, h *handler.InteractionHandler, cfg *env.Co
 		h.GetStats,
 	)
 
-	// Zmieniono h.RecordLike na h.HandleLike
 	stats.Post("/interactions",
 		middleware.ValidateBody[validator.InteractionRequest](),
 		h.HandleInteraction,
 	)
 
-	// Zmieniono h.InitializeSession na h.HandleVisit
 	stats.Post("/init",
 		h.HandleVisit,
 	)

@@ -115,7 +115,6 @@ func TestInteractionWorker_DLQ_Flow(t *testing.T) {
 	workerCtx, stop := context.WithCancel(ctx)
 	go func() { _ = w.Start(workerCtx) }()
 
-	// Poczekaj chwilę na przetworzenie
 	time.Sleep(500 * time.Millisecond)
 	stop()
 

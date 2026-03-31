@@ -15,19 +15,20 @@ import (
 )
 
 const (
-	// Redis Stream configuration for interaction events
 	streamName = "interaction_events"
-	dlqStream  = "interaction_events_dlq" // Dead Letter Queue for failed messages
+	dlqStream  = "interaction_events_dlq"
 	groupName  = "interaction_workers"
 
-	// Retry logic and failure handling
-	maxRetries = 5 // Number of processing attempts before moving a message to DLQ
+	maxRetries = 5
 
-	// Performance and batching thresholds
-	bulkThreshold  = 50 // Message count trigger to switch from individual to bulk status checks
+	bulkThreshold  = 50
 	readBlockTime  = 2 * time.Second
-	batchSizeLimit = 100 // Batch size threshold that triggers an immediate flush to DB
-	readBatchSize  = 10  // Number of messages to pull from Redis in a single XReadGroup call
+	batchSizeLimit = 100
+	readBatchSize  = 10
+
+	reclaimInterval = 30 * time.Second
+	minIdleTime     = time.Minute
+	cpuThrottle     = 100 * time.Millisecond
 )
 
 type InteractionWorker struct {
@@ -70,6 +71,8 @@ func (w *InteractionWorker) Start(ctx context.Context) (err error) {
 	var pendingMsgIDs []string
 	ticker := time.NewTicker(w.flushInterval)
 	defer ticker.Stop()
+	reclaimTicker := time.NewTicker(reclaimInterval)
+	defer reclaimTicker.Stop()
 
 	readOld := true
 
@@ -88,6 +91,12 @@ func (w *InteractionWorker) Start(ctx context.Context) (err error) {
 			pendingMsgIDs = w.flush(ctx, batch, pendingMsgIDs)
 			continue
 
+		case <-reclaimTicker.C:
+			reclaimed := w.reclaimPending(ctx)
+			if len(reclaimed) > 0 {
+				msgs = append(msgs, reclaimed...)
+			}
+
 		default:
 			lastID := ">"
 			if readOld {
@@ -103,6 +112,7 @@ func (w *InteractionWorker) Start(ctx context.Context) (err error) {
 		}
 
 		if len(msgs) == 0 {
+			time.Sleep(cpuThrottle)
 			continue
 		}
 
@@ -261,4 +271,31 @@ func (w *InteractionWorker) safeString(v any) string {
 		return ""
 	}
 	return s
+}
+
+func (w *InteractionWorker) reclaimPending(ctx context.Context) []redis.XMessage {
+	res, _, err := w.redisClient.XAutoClaim(ctx, &redis.XAutoClaimArgs{
+		Stream:   streamName,
+		Group:    groupName,
+		Consumer: w.consumerID,
+		MinIdle:  minIdleTime,
+		Start:    "0-0",
+		Count:    int64(readBatchSize),
+	}).Result()
+
+	if err != nil {
+		if !strings.Contains(err.Error(), "NOGROUP") && !errors.Is(err, redis.Nil) {
+			w.logger.Error("XAUTOCLAIM failed", zap.Error(err))
+		}
+		return nil
+	}
+
+	if len(res) > 0 {
+		w.logger.Info("Successfully reclaimed idle messages",
+			zap.Int("count", len(res)),
+			zap.String("consumer_id", w.consumerID),
+		)
+	}
+
+	return res
 }
