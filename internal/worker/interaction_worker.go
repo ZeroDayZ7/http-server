@@ -30,8 +30,8 @@ const (
 	readBatchSize  = 500
 	batchSizeLimit = 2000
 
-	reclaimInterval   = 10000 * time.Millisecond
-	minIdleTime       = 5000 * time.Millisecond
+	reclaimInterval   = 1000 * time.Millisecond
+	minIdleTime       = 500 * time.Millisecond
 	maxReclaimPerLoop = 500
 
 	flushTimeout   = 5 * time.Second
@@ -48,12 +48,14 @@ type eventBatch struct {
 	mu     sync.Mutex
 	counts map[string]int64
 	ids    []string
+	logger logger.Logger
 }
 
-func newEventBatch() *eventBatch {
+func newEventBatch(log logger.Logger) *eventBatch {
 	return &eventBatch{
 		counts: make(map[string]int64),
 		ids:    make([]string, 0, batchSizeLimit),
+		logger: log,
 	}
 }
 
@@ -116,18 +118,16 @@ type InteractionWorker struct {
 }
 
 func NewInteractionWorker(redisClient *redis.Client, repo service.InteractionRepository, log logger.Logger, timeout time.Duration, flushInterval time.Duration) *InteractionWorker {
-	// 1. Najpierw konfigurujemy Circuit Breaker
 	cb := gobreaker.NewCircuitBreaker(gobreaker.Settings{
 		Name:        "db-interaction-repo",
 		MaxRequests: 10,
 		Interval:    30 * time.Second,
-		Timeout:     100 * time.Millisecond,
+		Timeout:     5 * time.Second,
 		ReadyToTrip: func(counts gobreaker.Counts) bool {
 			return counts.ConsecutiveFailures > 5
 		},
-	}) // <-- Tu kończy się Settings i Circuit Breaker
+	})
 
-	// 2. Potem inicjalizujemy metryki (POZA Circuit Breakerem)
 	meter := otel.Meter("interaction-worker")
 
 	eventCounter, _ := meter.Int64Counter(
@@ -140,7 +140,6 @@ func NewInteractionWorker(redisClient *redis.Client, repo service.InteractionRep
 		metric.WithDescription("Czas trwania zapisu do bazy danych"),
 	)
 
-	// 3. Na końcu budujemy i zwracamy strukturę workera
 	return &InteractionWorker{
 		redisClient:     redisClient,
 		repo:            repo,
@@ -161,7 +160,7 @@ func (w *InteractionWorker) Start(ctx context.Context) error {
 	defer cancel()
 
 	msgChan := make(chan redis.XMessage, msgChanSize)
-	batch := newEventBatch()
+	batch := newEventBatch(w.logger)
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -195,7 +194,8 @@ func (w *InteractionWorker) Start(ctx context.Context) error {
 			if batch.size() > 0 {
 				w.safeFlush(shutdownCtx, batch)
 			}
-			w.drainPending(shutdownCtx, msgChan)
+			cancel()
+			w.drainPending(shutdownCtx, batch)
 			shutdownCancel()
 			wg.Wait()
 			return ctx.Err()
@@ -204,7 +204,6 @@ func (w *InteractionWorker) Start(ctx context.Context) error {
 }
 
 func (w *InteractionWorker) processSingle(ctx context.Context, msg redis.XMessage, batch *eventBatch) {
-	// 1. Walidacja formatu
 	val, ok := msg.Values["type"].(string)
 	if !ok || val == "" {
 		w.logger.Warn("invalid message format - moving to DLQ", zap.String("id", msg.ID))
@@ -223,6 +222,11 @@ func (w *InteractionWorker) processSingle(ctx context.Context, msg redis.XMessag
 		return
 	}
 
+	// w.logger.Debug("batch add",
+	// 	zap.String("id", msg.ID),
+	// 	zap.String("type", val),
+	// )
+
 	batch.add(msg.ID, val)
 }
 
@@ -232,10 +236,12 @@ func (w *InteractionWorker) safeFlush(ctx context.Context, batch *eventBatch) {
 		return
 	}
 
-	startTime := time.Now()
+	batch.clear()
 
 	w.flushInProgress.Store(true)
 	defer w.flushInProgress.Store(false)
+
+	startTime := time.Now()
 
 	flushCtx, cancel := context.WithTimeout(ctx, flushTimeout)
 	defer cancel()
@@ -247,7 +253,7 @@ func (w *InteractionWorker) safeFlush(ctx context.Context, batch *eventBatch) {
 	defer span.End()
 
 	var flushErr error
-	for i := 0; i < maxFlushRetries; i++ {
+	for i := range maxFlushRetries {
 		_, flushErr = w.cb.Execute(func() (any, error) {
 			for typ, amount := range counts {
 				if err := w.repo.IncrementBy(flushCtx, typ, amount); err != nil {
@@ -271,7 +277,7 @@ func (w *InteractionWorker) safeFlush(ctx context.Context, batch *eventBatch) {
 	}
 
 	if flushErr != nil {
-		w.logger.Warn("DB flush postponed - retrying in next cycle",
+		w.logger.Warn("DB flush failed - requeueing batch",
 			zap.String("reason", flushErr.Error()),
 			zap.Int("batch_size", len(ids)),
 		)
@@ -288,7 +294,7 @@ func (w *InteractionWorker) safeFlush(ctx context.Context, batch *eventBatch) {
 	defer ackCancel()
 
 	var ackErr error
-	for i := 0; i < maxAckRetries; i++ {
+	for i := range maxAckRetries {
 		ackErr = w.ackIDs(ackCtx, ids)
 		if ackErr == nil {
 			break
@@ -310,8 +316,6 @@ func (w *InteractionWorker) safeFlush(ctx context.Context, batch *eventBatch) {
 		span.RecordError(ackErr)
 		return
 	}
-
-	batch.clear()
 }
 
 func (w *InteractionWorker) markIdempotentBatch(ctx context.Context, ids []string) {
@@ -442,7 +446,6 @@ func (w *InteractionWorker) fetchMessages(ctx context.Context) ([]redis.XMessage
 	}
 
 	if len(streams) == 0 {
-		// w.logger.Debug("reclaimed messages")s
 		return nil, nil
 	}
 
@@ -461,7 +464,7 @@ func (w *InteractionWorker) moveToDLQ(ctx context.Context, msg redis.XMessage) {
 	}
 }
 
-func (w *InteractionWorker) drainPending(ctx context.Context, msgChan chan<- redis.XMessage) {
+func (w *InteractionWorker) drainPending(ctx context.Context, batch *eventBatch) {
 	for {
 		pending, err := w.redisClient.XPending(ctx, streamName, groupName).Result()
 		if err != nil {
@@ -497,10 +500,9 @@ func (w *InteractionWorker) drainPending(ctx context.Context, msgChan chan<- red
 		}
 
 		for _, m := range res {
-			select {
-			case msgChan <- m:
-			case <-ctx.Done():
-				return
+			w.processSingle(ctx, m, batch)
+			if batch.size() >= batchSizeLimit {
+				w.safeFlush(ctx, batch)
 			}
 		}
 	}
