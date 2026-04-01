@@ -52,4 +52,8 @@ func setDefaults() {
 	viper.SetDefault("SESSION_TTL", 24*time.Hour)
 	viper.SetDefault("FINGERPRINT_SALT", "default-secret-salt-1234")
 	viper.SetDefault("WORKER_FLUSH_INTERVAL", 10*time.Second)
+
+	// OTEL
+	viper.SetDefault("OTEL_ENABLED", false)
+	viper.SetDefault("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4317")
 }

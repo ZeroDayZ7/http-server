@@ -1,8 +1,8 @@
 {
   "files.exclude": {
     "**/go.sum": true,
-    "**/.gitattributes": true,
-    "**/logs": true
+    "**/.gitattributes": true
+    // "**/logs": true
     // "**/LICENSE": true
   },
 

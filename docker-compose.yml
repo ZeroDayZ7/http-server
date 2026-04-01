@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   # --- MONGO ---
   mongodb:
@@ -12,6 +10,8 @@ services:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
+    networks:
+      - app-network
 
   mongo-express:
     image: mongo-express:latest
@@ -22,13 +22,14 @@ services:
       ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_ROOT_USER}
       ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_ROOT_PASSWORD}
       ME_CONFIG_MONGODB_URL: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/
-
       ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_ROOT_USER}
       ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_ROOT_PASSWORD}
     depends_on:
       - mongodb
+    networks:
+      - app-network
 
-  # --- (MySQL) ---
+  # --- MYSQL ---
   mysql:
     image: mysql:8
     container_name: app_mysql
@@ -54,6 +55,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - app-network
 
   phpmyadmin:
     image: phpmyadmin:5-apache
@@ -66,6 +69,8 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+    networks:
+      - app-network
 
   # --- REDIS ---
   redis:
@@ -76,8 +81,56 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    networks:
+      - app-network
+
+  # --- TELEMETRY ---
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    volumes:
+      - ./deployments/otel/otel-config.yaml:/etc/otel-col/config.yaml
+    command: ["--config=/etc/otel-col/config.yaml"]
+    ports:
+      - "4317:4317"
+      - "8889:8889"
+    networks:
+      - app-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./deployments/otel/prometheus.yaml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - app-network
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    ports:
+      - "16686:16686"
+      - "4317"
+    networks:
+      - app-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+    networks:
+      - app-network
 
 volumes:
   mongodb_data:
   mysql_data:
   redis_data:
+
+networks:
+  app-network:
+    driver: bridge

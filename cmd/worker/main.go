@@ -11,6 +11,7 @@ import (
 	"github.com/zerodayz7/http-server/internal/di"
 	"github.com/zerodayz7/http-server/internal/redis"
 	"github.com/zerodayz7/http-server/internal/shared/logger"
+	"github.com/zerodayz7/http-server/internal/shared/telemetry"
 	"go.uber.org/zap"
 )
 
@@ -20,6 +21,17 @@ func main() {
 
 	config.LoadConfigGlobal(log)
 	cfg := &config.AppConfig
+
+	if cfg.OTEL.Enabled {
+		cleanup := telemetry.InitTelemetry(
+			context.Background(),
+			cfg.Server.AppName,
+			cfg.OTEL.Endpoint,
+			15*time.Second,
+		)
+		defer cleanup()
+		log.Info("OTEL Telemetry initialized", zap.String("endpoint", cfg.OTEL.Endpoint))
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

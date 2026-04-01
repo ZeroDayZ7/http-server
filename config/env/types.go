@@ -40,11 +40,17 @@ type RateLimitConfig struct {
 	Window time.Duration `mapstructure:"RATE_LIMIT_WINDOW"`
 }
 
+type OTELConfig struct {
+	Enabled  bool   `mapstructure:"OTEL_ENABLED"`
+	Endpoint string `mapstructure:"OTEL_EXPORTER_OTLP_ENDPOINT" validate:"required_if=Enabled true"`
+}
+
 type Config struct {
 	Server              ServerConfig    `mapstructure:",squash"`
 	Database            DBConfig        `mapstructure:",squash"`
 	Redis               RedisConfig     `mapstructure:",squash"`
 	RateLimit           RateLimitConfig `mapstructure:",squash"`
+	OTEL                OTELConfig      `mapstructure:",squash"`
 	CORSAllow           string          `mapstructure:"CORS_ALLOW_ORIGINS" validate:"required"`
 	CORSMethods         string          `mapstructure:"CORS_ALLOW_METHODS" validate:"required"`
 	CORSHeaders         string          `mapstructure:"CORS_ALLOW_HEADERS" validate:"required"`
