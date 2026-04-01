@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/zerodayz7/http-server/config"
 	"github.com/zerodayz7/http-server/internal/di"
 	"github.com/zerodayz7/http-server/internal/redis"
@@ -50,6 +52,9 @@ func main() {
 
 	go func() {
 		mux := http.NewServeMux()
+
+		mux.Handle("/metrics", promhttp.Handler())
+
 		mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 			hCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 			defer cancel()
@@ -66,7 +71,8 @@ func main() {
 
 		healthAddr := ":" + cfg.Server.HealthPort
 
-		log.Info("Health check server listening", zap.String("addr", healthAddr))
+		log.Info("Health & Metrics server listening", zap.String("addr", healthAddr))
+
 		if err := http.ListenAndServe(healthAddr, mux); err != nil && err != http.ErrServerClosed {
 			log.Error("Health check server failed", zap.Error(err))
 		}
