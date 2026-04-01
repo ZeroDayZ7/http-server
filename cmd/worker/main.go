@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -45,6 +47,30 @@ func main() {
 	redis.SetupStreamGroup(ctx, redisClient)
 
 	module, _ := di.InitializeInteractionModule(db, redisClient, cfg, log)
+
+	go func() {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+			hCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+			defer cancel()
+
+			isHealthy, report := module.Worker.HealthCheck(hCtx)
+
+			w.Header().Set("Content-Type", "application/json")
+			if !isHealthy {
+				w.WriteHeader(http.StatusServiceUnavailable)
+			}
+
+			json.NewEncoder(w).Encode(report)
+		})
+
+		healthAddr := ":" + cfg.Server.HealthPort
+
+		log.Info("Health check server listening", zap.String("addr", healthAddr))
+		if err := http.ListenAndServe(healthAddr, mux); err != nil && err != http.ErrServerClosed {
+			log.Error("Health check server failed", zap.Error(err))
+		}
+	}()
 
 	log.Info("Background Worker starting...", zap.String("env", os.Getenv("ENV")))
 

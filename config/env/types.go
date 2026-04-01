@@ -5,6 +5,7 @@ import "time"
 type ServerConfig struct {
 	AppName       string        `mapstructure:"APP_NAME" validate:"required"`
 	Port          string        `mapstructure:"PORT" validate:"required,numeric"`
+	HealthPort    string        `mapstructure:"HEALTH_PORT" validate:"required,numeric"`
 	BodyLimitMB   int           `mapstructure:"BODY_LIMIT_MB"`
 	Env           string        `mapstructure:"ENV" validate:"required,oneof=development staging production"`
 	AppVersion    string        `mapstructure:"APP_VERSION"`

@@ -10,6 +10,7 @@ func setDefaults() {
 	// Server
 	viper.SetDefault("APP_NAME", "http-server")
 	viper.SetDefault("PORT", "8080")
+	viper.SetDefault("HEALTH_PORT", "8081")
 	viper.SetDefault("BODY_LIMIT_MB", 2)
 	viper.SetDefault("APP_VERSION", "0.1.0")
 	viper.SetDefault("ENV", "development")
