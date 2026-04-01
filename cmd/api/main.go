@@ -17,12 +17,17 @@ import (
 
 func main() {
 	// 1. Inicjalizacja loggera
-	env := os.Getenv("ENV")
-	if env == "" {
-		env = "development"
+	envStr := os.Getenv("ENV")
+	appEnv := logger.EnvDevelopment
+
+	if envStr != "" {
+		appEnv = logger.Env(envStr)
 	}
-	log := logger.NewLogger(env)
+
+	log := logger.NewLogger(appEnv)
 	defer log.Sync()
+
+	log.Info("Application started", zap.String("env", string(appEnv)))
 
 	// 2. Ładowanie konfiguracji
 	if err := config.LoadConfigGlobal(log); err != nil {

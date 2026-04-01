@@ -31,7 +31,9 @@
       "command": "go test -v -count=1 -run TestInteractionWorker_PropertyChaos ./internal/worker/...",
       "options": {
         "env": {
-          "GOTMPDIR": "C:\\GoTemp"
+          "GOTMPDIR": "C:\\GoTemp",
+          "TMP": "C:\\GoTemp",
+          "TEMP": "C:\\GoTemp"
         }
       },
       "group": "test",
@@ -43,7 +45,9 @@
       "command": "go test -v -count=1 -run TestInteractionWorker_LoadTest ./internal/worker/...",
       "options": {
         "env": {
-          "GOTMPDIR": "C:\\GoTemp"
+          "GOTMPDIR": "C:\\GoTemp",
+          "TMP": "C:\\GoTemp",
+          "TEMP": "C:\\GoTemp"
         }
       },
       "group": "test",
@@ -55,7 +59,9 @@
       "command": "go test -v -count=1 -run TestInteractionWorker_DLQ_Flow ./internal/worker/...",
       "options": {
         "env": {
-          "GOTMPDIR": "C:\\GoTemp"
+          "GOTMPDIR": "C:\\GoTemp",
+          "TMP": "C:\\GoTemp",
+          "TEMP": "C:\\GoTemp"
         }
       },
       "group": "test",
@@ -67,7 +73,9 @@
       "command": "go test -v -count=1 -run TestInteractionWorker_FullFlow ./internal/worker/...",
       "options": {
         "env": {
-          "GOTMPDIR": "C:\\GoTemp"
+          "GOTMPDIR": "C:\\GoTemp",
+          "TMP": "C:\\GoTemp",
+          "TEMP": "C:\\GoTemp"
         }
       },
       "group": "test",
@@ -79,7 +87,9 @@
       "command": "go test -v -count=1 -run TestMultipleWorkers_LoadBalancing ./internal/worker/...",
       "options": {
         "env": {
-          "GOTMPDIR": "C:\\GoTemp"
+          "GOTMPDIR": "C:\\GoTemp",
+          "TMP": "C:\\GoTemp",
+          "TEMP": "C:\\GoTemp"
         }
       },
       "group": "test",

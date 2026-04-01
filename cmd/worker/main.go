@@ -20,8 +20,17 @@ import (
 )
 
 func main() {
-	log := logger.NewLogger(os.Getenv("ENV"))
+	envStr := os.Getenv("ENV")
+	appEnv := logger.EnvDevelopment
+
+	if envStr != "" {
+		appEnv = logger.Env(envStr)
+	}
+
+	log := logger.NewLogger(appEnv)
 	defer log.Sync()
+
+	log.Info("Application started", zap.String("env", string(appEnv)))
 
 	config.LoadConfigGlobal(log)
 	cfg := &config.AppConfig
