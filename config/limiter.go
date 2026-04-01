@@ -5,6 +5,8 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
+	fiberRedis "github.com/gofiber/storage/redis/v3"
+
 	"github.com/zerodayz7/http-server/config/env"
 	"github.com/zerodayz7/http-server/internal/errors"
 )
@@ -15,7 +17,7 @@ func NewLimiter(cfg *env.Config, group string) fiber.Handler {
 		Window time.Duration
 	}{
 		"global": {Max: cfg.RateLimit.Max, Window: cfg.RateLimit.Window},
-		"health": {Max: 20, Window: 60 * time.Minute},
+		"health": {Max: 5, Window: 5 * time.Minute},
 		"visits": {Max: 30, Window: 30 * time.Minute},
 	}
 
@@ -24,10 +26,14 @@ func NewLimiter(cfg *env.Config, group string) fiber.Handler {
 		limit = presets["global"]
 	}
 
-	return limiter.New(limiter.Config{
+	limiterConfig := limiter.Config{
 		Max:        limit.Max,
 		Expiration: limit.Window,
 		KeyGenerator: func(c *fiber.Ctx) string {
+			testKey := c.Get("X-Test-IP")
+			if testKey != "" {
+				return testKey
+			}
 			return c.IP()
 		},
 		LimitReached: func(c *fiber.Ctx) error {
@@ -36,5 +42,19 @@ func NewLimiter(cfg *env.Config, group string) fiber.Handler {
 				WithDetail("ip", c.IP()).
 				WithDetail("path", c.Path())
 		},
-	})
+	}
+
+	// --- LOGIKA STORAGE ---
+	// Jeśli Host jest ustawiony na "memory" lub jest pusty,
+	// nie dodajemy Storage (Fiber użyje RAM).
+	if cfg.Redis.Host != "" && cfg.Redis.Host != "memory" {
+		limiterConfig.Storage = fiberRedis.New(fiberRedis.Config{
+			Host:     cfg.Redis.Host,
+			Port:     cfg.Redis.Port,
+			Password: cfg.Redis.Password,
+			Database: cfg.Redis.DB,
+		})
+	}
+
+	return limiter.New(limiterConfig)
 }
