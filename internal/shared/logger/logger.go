@@ -1,66 +1,22 @@
 package logger
 
 import (
-	"os"
-
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+// zapLogger to prywatna implementacja interfejsu Logger
 type zapLogger struct {
 	*zap.Logger
 }
 
-func NewLogger(env string) Logger {
-	level := zap.DebugLevel
-	if env == "production" {
-		level = zap.InfoLevel
-	}
-
-	consoleEncoderConfig := zap.NewDevelopmentEncoderConfig()
-	if env == "production" {
-		consoleEncoderConfig = zap.NewProductionEncoderConfig()
-	}
-	consoleEncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-
-	logFile := &lumberjack.Logger{
-		Filename:   "logs/app.log",
-		MaxSize:    10,
-		MaxBackups: 5,
-		MaxAge:     7,
-		Compress:   true,
-	}
-
-	fileEncoderConfig := zap.NewProductionEncoderConfig()
-
-	consoleCore := zapcore.NewCore(
-		zapcore.NewConsoleEncoder(consoleEncoderConfig),
-		zapcore.AddSync(os.Stdout),
-		level,
-	)
-
-	fileCore := zapcore.NewCore(
-		zapcore.NewJSONEncoder(fileEncoderConfig),
-		zapcore.AddSync(logFile),
-		zap.InfoLevel,
-	)
-
-	core := zapcore.NewTee(consoleCore, fileCore)
-
-	zapInst := zap.New(core,
-		zap.AddCaller(),
-		zap.AddStacktrace(zap.ErrorLevel),
-	)
-
-	return &zapLogger{zapInst}
-}
-
+// NewNop zwraca loggera, który nic nie robi (przydatne w bardzo szybkich testach jednostkowych)
 func NewNop() Logger {
 	return &zapLogger{
 		Logger: zap.NewNop(),
 	}
 }
+
+// --- IMPLEMENTACJA METOD INTERFEJSU ---
 
 func (l *zapLogger) Info(msg string, fields ...zap.Field) {
 	l.Logger.Info(msg, fields...)
@@ -82,6 +38,8 @@ func (l *zapLogger) Fatal(msg string, fields ...zap.Field) {
 	l.Logger.Fatal(msg, fields...)
 }
 
+// --- SUGAR METHODS (Wygodne logowanie klucz-wartość) ---
+
 func (l *zapLogger) Infow(msg string, keysAndValues ...any) {
 	l.Logger.Sugar().Infow(msg, keysAndValues...)
 }
@@ -101,6 +59,8 @@ func (l *zapLogger) Errorw(msg string, keysAndValues ...any) {
 func (l *zapLogger) Fatalw(msg string, keysAndValues ...any) {
 	l.Logger.Sugar().Fatalw(msg, keysAndValues...)
 }
+
+// --- OBJECT LOGGING ---
 
 func (l *zapLogger) InfoObj(msg string, obj any) {
 	l.Logger.Info(msg, zap.Any("data", obj))

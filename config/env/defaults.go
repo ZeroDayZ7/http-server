@@ -34,7 +34,7 @@ func setDefaults() {
 
 	// Redis
 	viper.SetDefault("REDIS_HOST", "localhost")
-	viper.SetDefault("REDIS_PORT", "6379")
+	viper.SetDefault("REDIS_PORT", 6379)
 	viper.SetDefault("REDIS_PASSWORD", "")
 	viper.SetDefault("REDIS_DB", 0)
 

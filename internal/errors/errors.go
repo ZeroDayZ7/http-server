@@ -1,15 +1,19 @@
 package errors
 
-import "fmt"
+import (
+	"fmt"
+	"maps"
+)
 
 type ErrorType string
 
 const (
-	Unauthorized ErrorType = "UNAUTHORIZED"
-	Validation   ErrorType = "VALIDATION"
-	NotFound     ErrorType = "NOT_FOUND"
-	Internal     ErrorType = "INTERNAL"
-	BadRequest   ErrorType = "BAD_REQUEST"
+	Unauthorized    ErrorType = "UNAUTHORIZED"
+	Validation      ErrorType = "VALIDATION"
+	NotFound        ErrorType = "NOT_FOUND"
+	Internal        ErrorType = "INTERNAL"
+	BadRequest      ErrorType = "BAD_REQUEST"
+	TooManyRequests ErrorType = "TOO_MANY_REQUESTS"
 )
 
 type AppError struct {
@@ -31,9 +35,7 @@ func (e *AppError) WithDetail(key string, value any) *AppError {
 	newErr := *e
 
 	newMeta := make(map[string]any)
-	for k, v := range e.Meta {
-		newMeta[k] = v
-	}
+	maps.Copy(newMeta, e.Meta)
 	newMeta[key] = value
 
 	newErr.Meta = newMeta
@@ -59,5 +61,5 @@ var (
 	ErrValidationFailed = &AppError{Code: "VALIDATION_FAILED", Type: Validation, Message: "Request validation failed"}
 	ErrUnauthorized     = &AppError{Code: "UNAUTHORIZED", Type: Unauthorized, Message: "Unauthorized access"}
 	ErrUserNotFound     = &AppError{Code: "USER_NOT_FOUND", Type: NotFound, Message: "User not found"}
-	ErrTooManyRequests  = &AppError{Code: "TOO_MANY_REQUESTS", Type: BadRequest, Message: "Too many requests"}
+	ErrTooManyRequests  = &AppError{Code: "TOO_MANY_REQUESTS", Type: TooManyRequests, Message: "Too many requests"}
 )

@@ -11,18 +11,17 @@ import (
 	"go.uber.org/zap"
 )
 
-// InitRedis przyjmuje teraz config i logger jako jawne zależności
+// InitRedis
 func InitRedis(ctx context.Context, cfg env.RedisConfig, log logger.Logger) (*redis.Client, error) {
 	var addr string
 	var network string
 
-	// Logika wyboru protokołu (TCP vs UNIX Socket)
-	if cfg.Port == "0" || cfg.Port == "" {
+	if cfg.Port == 0 {
 		network = "unix"
 		addr = cfg.Host
 	} else {
 		network = "tcp"
-		addr = fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
+		addr = fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 	}
 
 	client := redis.NewClient(&redis.Options{
@@ -32,7 +31,6 @@ func InitRedis(ctx context.Context, cfg env.RedisConfig, log logger.Logger) (*re
 		DB:       cfg.DB,
 	})
 
-	// Sprawdzenie połączenia z timeoutem
 	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 

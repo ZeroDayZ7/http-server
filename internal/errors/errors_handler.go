@@ -10,11 +10,12 @@ import (
 
 func ErrorHandler(log logger.Logger) fiber.ErrorHandler {
 	statusMap := map[ErrorType]int{
-		Validation:   fiber.StatusBadRequest,
-		Unauthorized: fiber.StatusUnauthorized,
-		NotFound:     fiber.StatusNotFound,
-		Internal:     fiber.StatusInternalServerError,
-		BadRequest:   fiber.StatusBadRequest,
+		Validation:      fiber.StatusBadRequest,
+		Unauthorized:    fiber.StatusUnauthorized,
+		NotFound:        fiber.StatusNotFound,
+		Internal:        fiber.StatusInternalServerError,
+		BadRequest:      fiber.StatusBadRequest,
+		TooManyRequests: fiber.StatusTooManyRequests,
 	}
 
 	return func(c *fiber.Ctx, err error) error {

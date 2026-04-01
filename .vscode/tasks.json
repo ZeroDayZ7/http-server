@@ -1,0 +1,99 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Go: Test All (Worker)",
+      "type": "shell",
+      "command": "go test -v -count=1 ./internal/worker/...",
+      "options": {
+        "env": {
+          "GOTMPDIR": "C:\\GoTemp"
+        }
+      },
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "new" }
+    },
+    {
+      "label": "Go: Test DB Recovery (No Duplicates)",
+      "type": "shell",
+      "command": "go test -v -count=1 -run TestInteractionWorker_DBRecovery_NoDuplicates ./internal/worker/...",
+      "options": {
+        "env": {
+          "GOTMPDIR": "C:\\GoTemp"
+        }
+      },
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "new" }
+    },
+    {
+      "label": "Go: Test Chaos Mode",
+      "type": "shell",
+      "command": "go test -v -count=1 -run TestInteractionWorker_PropertyChaos ./internal/worker/...",
+      "options": {
+        "env": {
+          "GOTMPDIR": "C:\\GoTemp",
+          "TMP": "C:\\GoTemp",
+          "TEMP": "C:\\GoTemp"
+        }
+      },
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "new" }
+    },
+    {
+      "label": "Go: Test Load (10k msgs)",
+      "type": "shell",
+      "command": "go test -v -count=1 -run TestInteractionWorker_LoadTest ./internal/worker/...",
+      "options": {
+        "env": {
+          "GOTMPDIR": "C:\\GoTemp",
+          "TMP": "C:\\GoTemp",
+          "TEMP": "C:\\GoTemp"
+        }
+      },
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "new" }
+    },
+    {
+      "label": "Go: Test DLQ Flow",
+      "type": "shell",
+      "command": "go test -v -count=1 -run TestInteractionWorker_DLQ_Flow ./internal/worker/...",
+      "options": {
+        "env": {
+          "GOTMPDIR": "C:\\GoTemp",
+          "TMP": "C:\\GoTemp",
+          "TEMP": "C:\\GoTemp"
+        }
+      },
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "new" }
+    },
+    {
+      "label": "Go: Test Full Flow",
+      "type": "shell",
+      "command": "go test -v -count=1 -run TestInteractionWorker_FullFlow ./internal/worker/...",
+      "options": {
+        "env": {
+          "GOTMPDIR": "C:\\GoTemp",
+          "TMP": "C:\\GoTemp",
+          "TEMP": "C:\\GoTemp"
+        }
+      },
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "new" }
+    },
+    {
+      "label": "Go: Test Load Balancing",
+      "type": "shell",
+      "command": "go test -v -count=1 -run TestMultipleWorkers_LoadBalancing ./internal/worker/...",
+      "options": {
+        "env": {
+          "GOTMPDIR": "C:\\GoTemp",
+          "TMP": "C:\\GoTemp",
+          "TEMP": "C:\\GoTemp"
+        }
+      },
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "new" }
+    }
+  ]
+}

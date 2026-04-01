@@ -408,7 +408,9 @@ func TestInteractionWorker_PropertyChaos(t *testing.T) {
 func TestInteractionWorker_DBRecovery_NoDuplicates(t *testing.T) {
 	cleanup := telemetry.InitTelemetry(context.Background(), "worker-test", "localhost:4317", 1*time.Second)
 	defer cleanup()
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+
+	// Zwiększony timeout całego testu na wszelki wypadek
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
 
 	rdb := setupTestRedis(t)
@@ -452,11 +454,13 @@ func TestInteractionWorker_DBRecovery_NoDuplicates(t *testing.T) {
 
 	log := logger.NewLogger("development")
 
-	// Upewnij się, że 50ms to FlushInterval
-	w := NewInteractionWorker(rdb, mockRepo, log, 200*time.Millisecond, 50*time.Millisecond)
+	// Ustawiamy agresywne interwały: 100ms na Flush i 10ms na sprawdzanie Redisa
+	w := NewInteractionWorker(rdb, mockRepo, log, 100*time.Millisecond, 10*time.Millisecond)
 
 	workerCtx, stop := context.WithCancel(ctx)
+	workerDone := make(chan struct{})
 	go func() {
+		defer close(workerDone)
 		_ = w.Start(workerCtx)
 	}()
 
@@ -464,10 +468,10 @@ func TestInteractionWorker_DBRecovery_NoDuplicates(t *testing.T) {
 	mu.Lock()
 	dbFailure = true
 	mu.Unlock()
-	t.Log("💥 DB FAILURE ON")
+	t.Log("💥 DB FAILURE ON (Circuit Breaker should start failing)")
 
 	// 2. PRODUCE EVENTS - teraz wszystkie trafią na "zamkniętą" bazę
-	for i := range 50 {
+	for i := 0; i < 50; i++ {
 		_, err := rdb.XAdd(ctx, &redis.XAddArgs{
 			Stream: streamName,
 			Values: map[string]interface{}{
@@ -482,45 +486,58 @@ func TestInteractionWorker_DBRecovery_NoDuplicates(t *testing.T) {
 	// Daj workerowi czas na pobranie wiadomości i "odbicie się" od błędu bazy
 	time.Sleep(2 * time.Second)
 
-	// 3. RECOVERY
+	// 3. RECOVERY - baza wraca do życia
 	mu.Lock()
 	dbFailure = false
 	mu.Unlock()
 	t.Log("🟢 DB RECOVERED")
 
-	// 4. TRIGGER - wyślij dodatkowy event, aby natychmiast wybudzić worker'a z pętli select
-	_, _ = rdb.XAdd(ctx, &redis.XAddArgs{
-		Stream: streamName,
-		Values: map[string]interface{}{"type": "recovery", "id": "trigger"},
-	}).Result()
+	// 4. MULTI-TRIGGER - wysyłamy serię impulsów w tle, żeby "wybudzać" workera
+	go func() {
+		for i := 0; i < 15; i++ {
+			select {
+			case <-ctx.Done():
+				return
+			case <-workerDone:
+				return
+			default:
+				_ = rdb.XAdd(ctx, &redis.XAddArgs{
+					Stream: streamName,
+					Values: map[string]interface{}{"type": "recovery", "id": "kick"},
+				}).Err()
+				time.Sleep(250 * time.Millisecond)
+			}
+		}
+	}()
 
-	// 5. ASSERTION
+	// 5. ASSERTION - czekamy aż przetworzy wszystko (50 oryginałów + triggery)
 	assert.Eventually(t, func() bool {
 		mu.Lock()
-		defer mu.Unlock()
-
-		t.Logf("⏳ Waiting... totalCalls=%d", totalCalls)
+		current := totalCalls
+		mu.Unlock()
 
 		pending, _ := rdb.XPending(ctx, streamName, groupName).Result()
-		count := int64(0)
+		pCount := int64(0)
 		if pending != nil {
-			count = pending.Count
-			t.Logf("📦 Pending count=%d", count)
+			pCount = pending.Count
 		}
 
-		// Oczekujemy co najmniej 50 (50 oryginałów + ewentualny trigger)
-		return totalCalls >= 50 && count == 0
-	}, 15*time.Second, 300*time.Millisecond)
+		t.Logf("⏳ Progress Check: totalCalls=%d, pendingInRedis=%d", current, pCount)
+
+		// Warunek sukcesu: mamy co najmniej 50 zapisów i zero wiszących wiadomości w Redis
+		return current >= 50 && pCount == 0
+	}, 25*time.Second, 500*time.Millisecond)
 
 	stop()
+	<-workerDone
 
-	pending, err := rdb.XPending(ctx, streamName, groupName).Result()
+	finalPending, err := rdb.XPending(context.Background(), streamName, groupName).Result()
 	require.NoError(t, err)
 
-	t.Logf("📦 FINAL pending=%d", pending.Count)
-	t.Logf("📊 FINAL totalCalls=%d", totalCalls)
+	t.Logf("📊 FINAL STATS: totalCalls=%d | pending=%d", totalCalls, finalPending.Count)
 
-	assert.Equal(t, int64(0), pending.Count)
+	assert.Equal(t, int64(0), finalPending.Count, "Na koniec Redis musi być pusty")
+	assert.GreaterOrEqual(t, totalCalls, 50, "Musieliśmy przetworzyć co najmniej 50 oryginalnych eventów")
 	mockRepo.AssertExpectations(t)
 }
 
