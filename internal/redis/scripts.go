@@ -12,10 +12,13 @@ type Scripts struct {
 	RecordVisit       *redis.Script
 }
 
+//go:embed scripts/get_stats.lua
 var getStatsScript string
 
+//go:embed scripts/record_interaction.lua
 var recordInteractionScript string
 
+//go:embed scripts/visit.lua
 var recordVisitScript string
 
 var DefaultScripts = &Scripts{

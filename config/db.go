@@ -34,7 +34,6 @@ func InitDB(ctx context.Context, cfg env.DBConfig, log logger.Logger) (*sql.DB, 
 		return nil, fmt.Errorf("db ping failed: %w", err)
 	}
 
-	// Przekazujemy logger do migracji
 	if err := RunMigrations(db, log); err != nil {
 		return nil, fmt.Errorf("migrations failed: %w", err)
 	}
