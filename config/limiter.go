@@ -17,7 +17,7 @@ func NewLimiter(cfg *env.Config, group string) fiber.Handler {
 		Window time.Duration
 	}{
 		"global": {Max: cfg.RateLimit.Max, Window: cfg.RateLimit.Window},
-		"health": {Max: 5, Window: 5 * time.Minute},
+		"health": {Max: 50, Window: 1 * time.Minute},
 		"visits": {Max: 30, Window: 30 * time.Minute},
 	}
 
