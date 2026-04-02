@@ -45,8 +45,6 @@ func NewLimiter(cfg *env.Config, group string) fiber.Handler {
 	}
 
 	// --- LOGIKA STORAGE ---
-	// Jeśli Host jest ustawiony na "memory" lub jest pusty,
-	// nie dodajemy Storage (Fiber użyje RAM).
 	if cfg.Redis.Host != "" && cfg.Redis.Host != "memory" {
 		limiterConfig.Storage = fiberRedis.New(fiberRedis.Config{
 			Host:     cfg.Redis.Host,

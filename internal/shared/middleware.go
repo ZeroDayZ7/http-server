@@ -1,11 +1,10 @@
 package shared
 
 import (
-	stdErrors "errors"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	apperrors "github.com/zerodayz7/http-server/internal/errors"
+	"github.com/google/uuid"
 	"github.com/zerodayz7/http-server/internal/shared/logger"
 	"go.uber.org/zap"
 )
@@ -18,44 +17,43 @@ func RequestLoggerMiddleware(log logger.Logger) fiber.Handler {
 
 		start := time.Now()
 
-		log.Debug("Request started",
-			zap.String("method", c.Method()),
-			zap.String("path", c.Path()),
-		)
+		requestID := c.Get("X-Request-ID")
+		if requestID == "" {
+			requestID = uuid.New().String()
+		}
+		c.Set("X-Request-ID", requestID)
 
 		err := c.Next()
 
 		latency := time.Since(start)
-
 		status := c.Response().StatusCode()
 
-		if err != nil {
-			var appErr *apperrors.AppError
-			if stdErrors.As(err, &appErr) {
-				switch appErr.Type {
-				case apperrors.Validation, apperrors.BadRequest:
-					status = fiber.StatusBadRequest
-				case apperrors.Unauthorized:
-					status = fiber.StatusUnauthorized
-				case apperrors.NotFound:
-					status = fiber.StatusNotFound
-				default:
-					status = fiber.StatusInternalServerError
-				}
-			} else if fe, ok := err.(*fiber.Error); ok {
-				status = fe.Code
-			} else {
-				status = fiber.StatusInternalServerError
-			}
-		}
-
-		log.Info("Request Processed",
+		fields := []zap.Field{
+			zap.String("request_id", requestID),
 			zap.String("method", c.Method()),
 			zap.String("path", c.Path()),
 			zap.Int("status", status),
 			zap.Duration("latency", latency),
 			zap.String("ip", c.IP()),
-		)
+			zap.String("user_agent", c.Get("User-Agent")),
+		}
+
+		switch {
+		case status >= 500:
+			if err != nil {
+				fields = append(fields, zap.Error(err))
+			}
+			log.Error("Request failed", fields...)
+
+		case status >= 400:
+			if err != nil {
+				fields = append(fields, zap.Error(err))
+			}
+			log.Warn("Request client error", fields...)
+
+		default:
+			log.Info("Request processed", fields...)
+		}
 
 		return err
 	}

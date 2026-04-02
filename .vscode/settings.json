@@ -1,16 +1,18 @@
 {
   "files.exclude": {
     "**/go.sum": true,
-    "**/.gitattributes": true
-    // "**/logs": true
-    // "**/LICENSE": true
+    "**/.gitattributes": true,
+    "**/logs": true,
+    "**/LICENSE": true,
+    "README.md": true
   },
 
   "search.exclude": {
     "**/go.sum": true,
     "**/.gitattributes": true,
     "**/logs": true,
-    "**/LICENSE": true
+    "**/LICENSE": true,
+    "README.md": true
   },
   "go.formatTool": "gofmt",
   "editor.formatOnSave": true

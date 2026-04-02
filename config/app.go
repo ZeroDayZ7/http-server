@@ -13,7 +13,6 @@ import (
 	"github.com/zerodayz7/http-server/internal/shared/logger"
 )
 
-// NewFiberApp teraz przyjmuje również log
 func NewFiberApp(cfg *env.Config, log logger.Logger) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ProxyHeader:             fiber.HeaderXForwardedFor,
@@ -32,8 +31,7 @@ func NewFiberApp(cfg *env.Config, log logger.Logger) *fiber.App {
 		AppName:               cfg.Server.AppName,
 
 		RequestMethods: []string{"GET", "POST", "OPTIONS", "HEAD"},
-		// Przekazujemy log do ErrorHandlera
-		ErrorHandler: errors.ErrorHandler(log),
+		ErrorHandler:   errors.ErrorHandler(log),
 	})
 
 	app.Use(requestid.New())
