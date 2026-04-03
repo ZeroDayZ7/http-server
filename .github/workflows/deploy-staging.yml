@@ -78,21 +78,23 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 15m
           script: |
+            # Naprawa uprawnień Gita
+            git config --global --add safe.directory /home/zerodayz7/projects/tv2-simulation/go-app
+
             cd /home/zerodayz7/projects/tv2-simulation/go-app
 
-            echo "Pulling latest code from Git..."
-            # Używamy fetch i reset, żeby uniknąć konfliktów z plikiem .env lub zmianami lokalnymi
-            git fetch origin staging
-            git reset --hard origin/staging
+            echo "Full cleanup of Podman..."
+            # Zatrzymaj wszystko i usuń osierocone sieci
+            podman compose down --volumes --remove-orphans || true
 
-            echo "Deploying version: $COMMIT_HASH"
+            # To jest kluczowe dla Rootless Podman - resetuje procesy pomocnicze
+            podman system prune -f
 
-            echo "Restarting containers..."
-            podman compose down || true
+            echo "Starting containers..."
             podman compose up -d --build
 
-            # Krótka pauza na start serwera
-            sleep 5
+            echo "Wait for Go app to bind to port..."
+            sleep 15
 
-            # Health check
-            curl -f http://localhost:${{ secrets.PORT }}/health || (echo "Deployment failed health check" && exit 1)
+            # Używamy 127.0.0.1 zamiast localhost dla pewności wewnątrz tunelu
+            curl -f http://127.0.0.1:${{ secrets.PORT }}/health || (echo "Health check failed" && exit 1)
