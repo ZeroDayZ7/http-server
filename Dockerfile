@@ -3,27 +3,27 @@ FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
-# Debug: pokaż co jest w systemie
+# Debug
 RUN pwd && ls -la
 
-# Kopiowanie modułów
+# Moduły
 COPY go.mod go.sum ./
 RUN ls -la && go mod download
 
-# Kopiowanie całego repo
+# Kod
 COPY . .
 
-# 🔥 DEBUG: co faktycznie przyszło do kontenera
+# Debug – co faktycznie jest w kontenerze
 RUN echo "===== ROOT DIR =====" && ls -la
 RUN echo "===== FIND ALL FILES =====" && find . -type f
 RUN echo "===== GO FILES =====" && find . -name "*.go"
 
-# Debug: pokaż strukturę
-RUN echo "===== TREE (if available) =====" && (which tree && tree || echo "tree not installed")
+# Debug struktury
+RUN echo "===== TREE =====" && (which tree && tree || echo "tree not installed")
 
-# Build
+# Build API (KLUCZOWA ZMIANA)
 RUN echo "===== BUILD START =====" && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -o app . && \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -o app ./cmd/api && \
     echo "===== BUILD SUCCESS =====" && ls -la
 
 # 2. runtime
@@ -31,7 +31,6 @@ FROM alpine:latest
 
 WORKDIR /app
 
-# Debug runtime
 RUN ls -la
 
 COPY --from=builder /app/app .
