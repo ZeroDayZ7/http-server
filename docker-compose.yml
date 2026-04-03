@@ -24,6 +24,6 @@ services:
 
 networks:
   tv2_backend_net:
-    external: true
+    driver: bridge
   tv2_frontend_net:
-    external: true
+    driver: bridge
