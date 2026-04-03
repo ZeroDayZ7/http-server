@@ -78,7 +78,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: deploy
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 20m
+          command_timeout: 10m
           script: |
             cd /home/zerodayz7/projects/tv2-simulation/go-app
 
