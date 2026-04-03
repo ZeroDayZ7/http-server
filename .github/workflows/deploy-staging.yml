@@ -59,6 +59,10 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:server
 
+      - name: Test SSH connection
+        run: |
+          ssh -o StrictHostKeyChecking=no -v deploy@100.75.109.94 "echo OK"
+
       - name: Copy project to server
         uses: appleboy/scp-action@v0.1.7
         with:
