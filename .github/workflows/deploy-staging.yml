@@ -21,8 +21,13 @@ jobs:
         with:
           go-version: "1.25"
 
-      # - name: Run Tests
-      # run: go test ./... -v
+      # 1. Połączenie z Tailscale musi być przed testem SSH i SCP
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:server
 
       - name: Generate .env file from Secrets
         run: |
@@ -52,38 +57,33 @@ jobs:
           COMMIT_HASH=${{ steps.vars.outputs.sha_short }}
           EOF
 
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v2
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:server
-
-      - name: Test SSH connection
-        run: |
-          ssh -o StrictHostKeyChecking=no -v deploy@100.75.109.94 "echo OK"
-
-      - name: Copy project to server
+      # 2. Wysyłamy TYLKO plik .env do odpowiedniego folderu
+      - name: Copy .env to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.SERVER_HOST }}
+          host: 100.75.109.94
           username: deploy
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: ".env"
+          target: "/home/zerodayz7/projects/tv2-simulation/go-app"
 
+      # 3. Deploy przez SSH: Git Pull + Podman
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         env:
           COMMIT_HASH: ${{ steps.vars.outputs.sha_short }}
         with:
-          host: ${{ secrets.SERVER_HOST }}
+          host: 100.75.109.94
           username: deploy
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 10m
+          command_timeout: 15m
           script: |
             cd /home/zerodayz7/projects/tv2-simulation/go-app
 
-            echo "Pulling latest code..."
-            git pull origin staging
+            echo "Pulling latest code from Git..."
+            # Używamy fetch i reset, żeby uniknąć konfliktów z plikiem .env lub zmianami lokalnymi
+            git fetch origin staging
+            git reset --hard origin/staging
 
             echo "Deploying version: $COMMIT_HASH"
 
