@@ -83,14 +83,11 @@ jobs:
 
             cd /home/zerodayz7/projects/tv2-simulation/go-app
 
-            echo "Full cleanup of Podman..."
-            # Zatrzymaj wszystko i usuń osierocone sieci
-            podman compose down --volumes --remove-orphans || true
-
-            # To jest kluczowe dla Rootless Podman - resetuje procesy pomocnicze
-            podman system prune -f
+            echo "Pull latest code..."
+            git pull
 
             echo "Starting containers..."
+
             podman compose up -d --build
 
             echo "Wait for Go app to bind to port..."
