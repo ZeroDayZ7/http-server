@@ -69,8 +69,6 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: deploy
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "."
-          target: "/home/zerodayz7/projects/tv2-simulation"
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -82,14 +80,15 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 20m
           script: |
-            cd /home/zerodayz7/projects/tv2-simulation
+            cd /home/zerodayz7/projects/tv2-simulation/go-app
+
+            echo "Pulling latest code..."
+            git pull origin staging
 
             echo "Deploying version: $COMMIT_HASH"
 
-            # Zatrzymanie obecnych kontenerów
+            echo "Restarting containers..."
             podman compose down || true
-
-            # Budowanie i start aplikacji
             podman compose up -d --build
 
             # Krótka pauza na start serwera
