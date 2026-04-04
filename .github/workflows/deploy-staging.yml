@@ -84,8 +84,7 @@ jobs:
 
             cd /home/zerodayz7/projects/tv2-simulation/go-app
 
-            echo "Ensuring correct branch (staging)..."
-            echo "Pull latest code..."
+            echo "Ensuring correct branch - Pull latest code...(staging)..."
             git fetch origin
             git checkout staging
             git pull origin staging
