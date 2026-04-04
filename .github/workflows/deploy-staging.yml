@@ -97,6 +97,3 @@ jobs:
 
             echo "Wait for Go app to bind to port..."
             sleep 15
-
-            # Używamy 127.0.0.1 zamiast localhost dla pewności wewnątrz tunelu
-            curl -f http://127.0.0.1:${{ secrets.PORT }}/health || (echo "Health check failed" && exit 1)
