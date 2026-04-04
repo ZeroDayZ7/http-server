@@ -91,6 +91,8 @@ jobs:
 
             echo "Starting containers..."
 
+            cd /home/zerodayz7/projects/tv2-simulation
+
             podman compose up -d --build
 
             echo "Wait for Go app to bind to port..."
