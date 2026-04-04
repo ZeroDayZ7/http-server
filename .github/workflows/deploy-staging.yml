@@ -21,13 +21,16 @@ jobs:
         with:
           go-version: "1.25"
 
-      # 1. Połączenie z Tailscale musi być przed testem SSH i SCP
       - name: Connect to Tailscale
         uses: tailscale/github-action@v2
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:server
+
+      - name: Dump Tailscale logs
+        if: always()
+        run: cat ~/tailscaled.log
 
       - name: Generate .env file from Secrets
         run: |
@@ -57,7 +60,6 @@ jobs:
           COMMIT_HASH=${{ steps.vars.outputs.sha_short }}
           EOF
 
-      # 2. Wysyłamy TYLKO plik .env do odpowiedniego folderu
       - name: Copy .env to server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -67,7 +69,6 @@ jobs:
           source: ".env"
           target: "/home/zerodayz7/projects/tv2-simulation/go-app"
 
-      # 3. Deploy przez SSH: Git Pull + Podman
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         env:
