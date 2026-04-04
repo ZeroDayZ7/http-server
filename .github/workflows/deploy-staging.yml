@@ -63,7 +63,7 @@ jobs:
       - name: Copy .env to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: 100.75.109.94
+          host: ${{ secrets.SERVER_HOST }}
           username: deploy
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: ".env"
@@ -74,7 +74,7 @@ jobs:
         env:
           COMMIT_HASH: ${{ steps.vars.outputs.sha_short }}
         with:
-          host: 100.75.109.94
+          host: ${{ secrets.SERVER_HOST }}
           username: deploy
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 15m
