@@ -26,7 +26,7 @@ func setDefaults() {
 	viper.SetDefault("MYSQL_USER", "root")
 	viper.SetDefault("MYSQL_PASSWORD", "password")
 	viper.SetDefault("MYSQL_HOST", "localhost")
-	viper.SetDefault("MYSQL_PORT", "3306")
+	viper.SetDefault("DB_PORT", "3306")
 	viper.SetDefault("MYSQL_DATABASE", "appdb")
 	viper.SetDefault("DB_MAX_OPEN_CONNS", 50)
 	viper.SetDefault("DB_MAX_IDLE_CONNS", 10)
