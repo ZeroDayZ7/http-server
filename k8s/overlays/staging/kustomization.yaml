@@ -5,5 +5,7 @@ resources:
   - deployment.yaml
   - service.yaml
   - ingress.yaml
+  - mysql.yaml
+  - redis.yaml
 
 namespace: staging
