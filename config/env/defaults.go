@@ -23,11 +23,11 @@ func setDefaults() {
 	viper.SetDefault("WRITE_TIMEOUT", 15*time.Second)
 
 	// Database
-	viper.SetDefault("MYSQL_USER", "root")
-	viper.SetDefault("MYSQL_PASSWORD", "password")
-	viper.SetDefault("MYSQL_HOST", "localhost")
+	viper.SetDefault("DB_USER", "root")
+	viper.SetDefault("DB_PASSWORD", "password")
+	viper.SetDefault("DB_HOST", "localhost")
 	viper.SetDefault("DB_PORT", "3306")
-	viper.SetDefault("MYSQL_DATABASE", "appdb")
+	viper.SetDefault("DB_NAME", "appdb")
 	viper.SetDefault("DB_MAX_OPEN_CONNS", 50)
 	viper.SetDefault("DB_MAX_IDLE_CONNS", 10)
 	viper.SetDefault("DB_CONN_MAX_LIFETIME", 30*time.Minute)
