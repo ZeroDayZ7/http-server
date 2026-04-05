@@ -35,8 +35,8 @@ jobs:
 
       - name: Build & Push image
         run: |
-          docker build -t ghcr.io/${{ github.repository }}:${{ steps.vars.outputs.sha_short }} .
-          docker push ghcr.io/${{ github.repository }}:${{ steps.vars.outputs.sha_short }}
+          docker build -t ghcr.io/${{ vars.GHCR_OWNER }}/${{ vars.GHCR_IMAGE }}:${{ steps.vars.outputs.sha_short }} .
+          docker push ghcr.io/${{ vars.GHCR_OWNER }}/${{ vars.GHCR_IMAGE }}:${{ steps.vars.outputs.sha_short }}
 
       - name: Setup kubeconfig
         run: |
