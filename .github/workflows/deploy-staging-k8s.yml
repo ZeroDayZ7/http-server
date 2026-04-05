@@ -127,6 +127,7 @@ jobs:
         run: |
           IMAGE=ghcr.io/${{ vars.GHCR_OWNER }}/${{ vars.GHCR_IMAGE }}-api:${{ steps.vars.outputs.sha_short }}
 
+          echo "Using IMAGE=$IMAGE"
           echo "Deploying image: $IMAGE"
 
           kubectl set image deployment/go-api go-api=$IMAGE -v=8
