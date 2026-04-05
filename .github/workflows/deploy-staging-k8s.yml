@@ -20,6 +20,9 @@ jobs:
         id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
+      # -------------------
+      # TAILSCALE DEBUG START
+      # -------------------
       - name: Connect to Tailscale
         uses: tailscale/github-action@v2
         with:
@@ -27,6 +30,34 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:server
 
+      - name: Tailscale debug info
+        run: |
+          echo "==== TAILSCALE STATUS ===="
+          tailscale status
+
+          echo "==== IP ===="
+          ip a
+
+          echo "==== ROUTES ===="
+          ip route
+
+          echo "==== DNS ===="
+          cat /etc/resolv.conf
+
+      - name: Ping / connectivity test
+        run: |
+          echo "==== PING NODE ===="
+          ping -c 3 100.75.109.94 || true
+
+          echo "==== TCP CHECK (6443) ===="
+          nc -zv 100.75.109.94 6443 || true
+
+          echo "==== CURL K8S API ===="
+          curl -k https://100.75.109.94:6443/healthz || true
+
+      # -------------------
+      # DOCKER
+      # -------------------
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -37,62 +68,79 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # -------------------
-      # BUILD & PUSH API
-      # -------------------
       - name: Build & Push API
         run: |
           IMAGE=ghcr.io/${{ vars.GHCR_OWNER }}/${{ vars.GHCR_IMAGE }}-api:${{ steps.vars.outputs.sha_short }}
 
-          docker build \
-            -t $IMAGE \
-            -f cmd/api/Dockerfile \
-            .
-
+          docker build -t $IMAGE -f cmd/api/Dockerfile .
           docker push $IMAGE
 
       # -------------------
-      # BUILD & PUSH WORKER (opcjonalnie)
-      # -------------------
-      # - name: Build & Push Worker
-      #   run: |
-      #     IMAGE=ghcr.io/${{ vars.GHCR_OWNER }}/${{ vars.GHCR_IMAGE }}-worker:${{ steps.vars.outputs.sha_short }}
-
-      #     docker build \
-      #       -t $IMAGE \
-      #       -f cmd/worker/Dockerfile \
-      #       .
-
-      #     docker push $IMAGE
-
-      # -------------------
-      # KUBECONFIG
+      # KUBECONFIG DEBUG
       # -------------------
       - name: Setup kubeconfig
         run: |
           echo "${{ secrets.KUBECONFIG }}" > kubeconfig
           echo "KUBECONFIG=$PWD/kubeconfig" >> $GITHUB_ENV
 
+      - name: Kubeconfig debug
+        run: |
+          echo "==== KUBECONFIG FILE ===="
+          cat kubeconfig | sed 's/client-certificate-data:.*/client-certificate-data: ***REDACTED***/' || true
+
+          echo "==== KUBECTL CONFIG VIEW ===="
+          kubectl config view
+
+          echo "==== CURRENT CONTEXT ===="
+          kubectl config current-context
+
+          echo "==== CLUSTERS ===="
+          kubectl config get-clusters
+
+          echo "==== USERS ===="
+          kubectl config get-users
+
       # -------------------
-      # DEPLOY API
+      # KUBERNETES DEBUG
+      # -------------------
+      - name: Cluster connectivity debug
+        run: |
+          echo "==== KUBECTL VERSION ===="
+          kubectl version --client
+
+          echo "==== API SERVER VERSION ===="
+          kubectl version --short || true
+
+          echo "==== CLUSTER INFO ===="
+          kubectl cluster-info || true
+
+          echo "==== GET NODES ===="
+          kubectl get nodes -v=8 || true
+
+          echo "==== GET PODS ALL NAMESPACES ===="
+          kubectl get pods -A -v=8 || true
+
+      # -------------------
+      # DEPLOY
       # -------------------
       - name: Deploy API
         run: |
           IMAGE=ghcr.io/${{ vars.GHCR_OWNER }}/${{ vars.GHCR_IMAGE }}-api:${{ steps.vars.outputs.sha_short }}
 
-          kubectl set image deployment/go-api \
-            go-api=$IMAGE
+          echo "Deploying image: $IMAGE"
 
-          kubectl rollout status deployment/go-api
+          kubectl set image deployment/go-api go-api=$IMAGE -v=8
+
+          kubectl rollout status deployment/go-api -v=8
 
       # -------------------
-      # DEPLOY WORKER (opcjonalnie)
+      # FINAL DEBUG
       # -------------------
-      # - name: Deploy Worker
-      #   run: |
-      #     IMAGE=ghcr.io/${{ vars.GHCR_OWNER }}/${{ vars.GHCR_IMAGE }}-worker:${{ steps.vars.outputs.sha_short }}
+      - name: Post deploy debug
+        if: always()
+        run: |
+          echo "==== PODS ===="
+          kubectl get pods -o wide || true
 
-      #     kubectl set image deployment/go-worker \
-      #       go-worker=$IMAGE
-
-      #     kubectl rollout status deployment/go-worker
+          echo "==== EVENTS ===="
+          kubectl get events --sort-by=.metadata.creationTimestamp || true
