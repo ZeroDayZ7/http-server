@@ -7,5 +7,5 @@ spec:
     app: go-api
   ports:
     - port: 80
-      targetPort: 9000
+      targetPort: 8080
   type: ClusterIP

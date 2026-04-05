@@ -20,7 +20,7 @@ spec:
         - name: go-api
           image: ghcr.io/zerodayz7/http-server-api:9e7d7c7
           ports:
-            - containerPort: 9000
+            - containerPort: 8080
 
           # TUTAJ DODAŁEM volumeMounts
           volumeMounts:
