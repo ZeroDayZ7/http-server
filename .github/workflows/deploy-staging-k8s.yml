@@ -33,21 +33,54 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & Push image
+      # -------------------
+      # BUILD & PUSH API
+      # -------------------
+      - name: Build & Push API
         run: |
-          docker build -t ghcr.io/${{ vars.GHCR_OWNER }}/${{ vars.GHCR_IMAGE }}:${{ steps.vars.outputs.sha_short }} .
-          docker push ghcr.io/${{ vars.GHCR_OWNER }}/${{ vars.GHCR_IMAGE }}:${{ steps.vars.outputs.sha_short }}
+          IMAGE=ghcr.io/${{ github.repository }}-api:${{ steps.vars.outputs.sha_short }}
 
+          docker build -t $IMAGE -f Dockerfile.api .
+          docker push $IMAGE
+
+      # -------------------
+      # BUILD & PUSH WORKER
+      # -------------------
+      # - name: Build & Push Worker
+      #   run: |
+      #     IMAGE=ghcr.io/${{ github.repository }}-worker:${{ steps.vars.outputs.sha_short }}
+
+      #     docker build -t $IMAGE -f Dockerfile.worker .
+      #     docker push $IMAGE
+
+      # -------------------
+      # KUBECONFIG
+      # -------------------
       - name: Setup kubeconfig
         run: |
           echo "${{ secrets.KUBECONFIG }}" > kubeconfig
           export KUBECONFIG=kubeconfig
 
-      - name: Deploy to Kubernetes
+      # -------------------
+      # DEPLOY API
+      # -------------------
+      - name: Deploy API
         run: |
-          IMAGE=ghcr.io/${{ github.repository }}:${{ steps.vars.outputs.sha_short }}
+          IMAGE=ghcr.io/${{ github.repository }}-api:${{ steps.vars.outputs.sha_short }}
 
           kubectl set image deployment/go-api \
             go-api=$IMAGE
 
           kubectl rollout status deployment/go-api
+
+      # -------------------
+      # DEPLOY WORKER
+      # -------------------
+      # - name: Deploy Worker
+      #   run: |
+      #     IMAGE=ghcr.io/${{ github.repository }}-worker:${{ steps.vars.outputs.sha_short }}
+
+      #     kubectl set image deployment/go-worker \
+      #       go-worker=$IMAGE
+
+      #     kubectl rollout status deployment/go-worker
