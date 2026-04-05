@@ -40,17 +40,25 @@ jobs:
         run: |
           IMAGE=ghcr.io/${{ github.repository }}-api:${{ steps.vars.outputs.sha_short }}
 
-          docker build -t $IMAGE -f Dockerfile.api .
+          docker build \
+            -t $IMAGE \
+            -f cmd/api/Dockerfile \
+            .
+
           docker push $IMAGE
 
       # -------------------
-      # BUILD & PUSH WORKER
+      # BUILD & PUSH WORKER (zakomentowane)
       # -------------------
       # - name: Build & Push Worker
       #   run: |
       #     IMAGE=ghcr.io/${{ github.repository }}-worker:${{ steps.vars.outputs.sha_short }}
 
-      #     docker build -t $IMAGE -f Dockerfile.worker .
+      #     docker build \
+      #       -t $IMAGE \
+      #       -f cmd/worker/Dockerfile \
+      #       .
+
       #     docker push $IMAGE
 
       # -------------------
@@ -74,7 +82,7 @@ jobs:
           kubectl rollout status deployment/go-api
 
       # -------------------
-      # DEPLOY WORKER
+      # DEPLOY WORKER (zakomentowane)
       # -------------------
       # - name: Deploy Worker
       #   run: |
