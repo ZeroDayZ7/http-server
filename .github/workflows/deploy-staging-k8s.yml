@@ -5,7 +5,7 @@ on:
     branches: [staging]
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
@@ -19,41 +19,6 @@ jobs:
       - name: Get commit hash
         id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-
-      # -------------------
-      # TAILSCALE DEBUG START
-      # -------------------
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v2
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:server
-
-      - name: Tailscale debug info
-        run: |
-          echo "==== TAILSCALE STATUS ===="
-          tailscale status
-
-          echo "==== IP ===="
-          ip a
-
-          echo "==== ROUTES ===="
-          ip route
-
-          echo "==== DNS ===="
-          cat /etc/resolv.conf
-
-      - name: Ping / connectivity test
-        run: |
-          echo "==== PING NODE ===="
-          ping -c 3 100.75.109.94 || true
-
-          echo "==== TCP CHECK (6443) ===="
-          nc -zv 100.75.109.94 6443 || true
-
-          echo "==== CURL K8S API ===="
-          curl -k https://100.75.109.94:6443/healthz || true
 
       # -------------------
       # DOCKER
@@ -72,70 +37,58 @@ jobs:
         run: |
           IMAGE=ghcr.io/${{ vars.GHCR_OWNER }}/${{ vars.GHCR_IMAGE }}-api:${{ steps.vars.outputs.sha_short }}
 
+          echo "Building image: $IMAGE"
+
           docker build -t $IMAGE -f cmd/api/Dockerfile .
           docker push $IMAGE
 
       # -------------------
-      # KUBECONFIG DEBUG
+      # UPDATE YAML (GITOPS)
+      # -------------------
+      - name: Update deployment image in YAML
+        run: |
+          IMAGE=ghcr.io/${{ vars.GHCR_OWNER }}/${{ vars.GHCR_IMAGE }}-api:${{ steps.vars.outputs.sha_short }}
+
+          echo "Updating deployment.yaml with image: $IMAGE"
+
+          sed -i "s|image: .*|image: $IMAGE|g" deployment.yaml
+
+      # -------------------
+      # COMMIT YAML CHANGE
+      # -------------------
+      - name: Commit updated deployment
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add deployment.yaml
+
+          git commit -m "Deploy: update image to ${{ steps.vars.outputs.sha_short }}" || echo "No changes to commit"
+
+          git push
+
+      # -------------------
+      # KUBECONFIG
       # -------------------
       - name: Setup kubeconfig
         run: |
           echo "${{ secrets.KUBECONFIG }}" > kubeconfig
           echo "KUBECONFIG=$PWD/kubeconfig" >> $GITHUB_ENV
 
-      - name: Kubeconfig debug
+      # -------------------
+      # DEPLOY (APPLY YAML)
+      # -------------------
+      - name: Deploy to Kubernetes
         run: |
-          echo "==== KUBECONFIG FILE ===="
-          cat kubeconfig | sed 's/client-certificate-data:.*/client-certificate-data: ***REDACTED***/' || true
+          echo "Applying deployment.yaml"
 
-          echo "==== KUBECTL CONFIG VIEW ===="
-          kubectl config view
+          kubectl apply -f deployment.yaml
 
-          echo "==== CURRENT CONTEXT ===="
-          kubectl config current-context
-
-          echo "==== CLUSTERS ===="
-          kubectl config get-clusters
-
-          echo "==== USERS ===="
-          kubectl config get-users
+          echo "Waiting for rollout..."
+          kubectl rollout status deployment/go-api
 
       # -------------------
-      # KUBERNETES DEBUG
-      # -------------------
-      - name: Cluster connectivity debug
-        run: |
-          echo "==== KUBECTL VERSION ===="
-          kubectl version --client
-
-          echo "==== API SERVER VERSION ===="
-          kubectl version --short || true
-
-          echo "==== CLUSTER INFO ===="
-          kubectl cluster-info || true
-
-          echo "==== GET NODES ===="
-          kubectl get nodes -v=8 || true
-
-          echo "==== GET PODS ALL NAMESPACES ===="
-          kubectl get pods -A -v=8 || true
-
-      # -------------------
-      # DEPLOY
-      # -------------------
-      - name: Deploy API
-        run: |
-          IMAGE=ghcr.io/${{ vars.GHCR_OWNER }}/${{ vars.GHCR_IMAGE }}-api:${{ steps.vars.outputs.sha_short }}
-
-          echo "Using IMAGE=$IMAGE"
-          echo "Deploying image: $IMAGE"
-
-          kubectl set image deployment/go-api go-api=$IMAGE -v=8
-
-          kubectl rollout status deployment/go-api -v=8
-
-      # -------------------
-      # FINAL DEBUG
+      # DEBUG
       # -------------------
       - name: Post deploy debug
         if: always()
@@ -146,4 +99,5 @@ jobs:
           echo "==== EVENTS ===="
           kubectl get events --sort-by=.metadata.creationTimestamp || true
 
-          echo "==== ROLLOUT STATUS ===="
+          echo "==== DEPLOYMENT ===="
+          kubectl get deployment go-api -o yaml || true
