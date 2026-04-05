@@ -14,4 +14,4 @@ spec:
               service:
                 name: go-api
                 port:
-                  number: 80
+                  number: 8080

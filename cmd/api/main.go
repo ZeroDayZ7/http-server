@@ -1,3 +1,7 @@
+/* * Motto:
+ * Miracles: done immediately.
+ * The impossible: takes 3 days.
+ */
 package main
 
 import (
