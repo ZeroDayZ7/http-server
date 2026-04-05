@@ -27,16 +27,32 @@ spec:
                 name: api-config
 
           env:
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: user
             - name: MYSQL_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: mysql-secret
                   key: password
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: database
+            - name: MYSQL_HOST
+              value: "mysql"
+
+            # REDIS
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: redis-secret
                   key: password
+
+            # APP SECRETS
             - name: FINGERPRINT_SALT
               valueFrom:
                 secretKeyRef:
