@@ -51,7 +51,8 @@ jobs:
 
           echo "Updating deployment.yaml with image: $IMAGE"
 
-          sed -i "s|image: .*|image: $IMAGE|g" deployment.yaml
+          sed -i "s|image: .*|image: $IMAGE|g" k8s/deployment.yaml
+          kubectl apply -f k8s/deployment.yaml
 
       # -------------------
       # COMMIT YAML CHANGE
