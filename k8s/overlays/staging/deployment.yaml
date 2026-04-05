@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: go-api
+  namespace: staging
 spec:
   replicas: 1
   selector:
@@ -21,25 +22,28 @@ spec:
           ports:
             - containerPort: 9000
 
+          # TUTAJ DODAŁEM volumeMounts
+          volumeMounts:
+            - name: migrations-dir
+              mountPath: /app/migrations
+              readOnly: true
+
           env:
             # DB connection
             - name: DB_HOST
               value: mysql
             - name: DB_PORT
               value: "3306"
-
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
                   name: mysql-secret
                   key: user
-
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: mysql-secret
                   key: password
-
             - name: DB_NAME
               valueFrom:
                 secretKeyRef:
@@ -51,10 +55,13 @@ spec:
               value: redis
             - name: REDIS_PORT
               value: "6379"
-
-            # optional (jeśli używasz)
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: redis-secret
                   key: password
+
+      volumes:
+        - name: migrations-dir
+          configMap:
+            name: api-migrations
