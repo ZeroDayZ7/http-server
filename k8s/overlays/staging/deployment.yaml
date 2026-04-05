@@ -18,48 +18,35 @@ spec:
 
       containers:
         - name: go-api
-          image: ghcr.io/zerodayz7/http-server-api:9e7d7c7
+          image: ghcr.io/zerodayz7/http-server:9e7d7c7
           ports:
             - containerPort: 8080
 
-          # TUTAJ DODAŁEM volumeMounts
-          volumeMounts:
-            - name: migrations-dir
-              mountPath: /app/migrations
-              readOnly: true
+          envFrom:
+            - configMapRef:
+                name: api-config
 
           env:
-            # DB connection
-            - name: DB_HOST
-              value: mysql
-            - name: DB_PORT
-              value: "3306"
-            - name: DB_USER
-              valueFrom:
-                secretKeyRef:
-                  name: mysql-secret
-                  key: user
-            - name: DB_PASSWORD
+            - name: MYSQL_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: mysql-secret
                   key: password
-            - name: DB_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: mysql-secret
-                  key: database
-
-            # Redis connection
-            - name: REDIS_HOST
-              value: redis
-            - name: REDIS_PORT
-              value: "6379"
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: redis-secret
                   key: password
+            - name: FINGERPRINT_SALT
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: FINGERPRINT_SALT
+
+          volumeMounts:
+            - name: migrations-dir
+              mountPath: /app/migrations
+              readOnly: true
 
       volumes:
         - name: migrations-dir

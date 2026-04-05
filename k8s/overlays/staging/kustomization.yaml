@@ -7,5 +7,6 @@ resources:
   - ingress.yaml
   - databases.yaml
   - redis.yaml
+  - configmap.yaml
 
 namespace: staging

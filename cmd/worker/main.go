@@ -102,7 +102,7 @@ func main() {
 		_ = json.NewEncoder(w).Encode(report)
 	})
 
-	healthAddr := ":" + cfg.Server.HealthPort
+	healthAddr := ":" + cfg.Server.WorkerPort
 
 	server := &http.Server{
 		Addr:    healthAddr,
