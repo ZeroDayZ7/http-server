@@ -17,7 +17,7 @@ spec:
 
       containers:
         - name: go-api
-          image: ghcr.io/zerodayz7/http-server-api:${TAG}
+          image: ghcr.io/zerodayz7/http-server-api:9e7d7c7
           ports:
             - containerPort: 9000
 
