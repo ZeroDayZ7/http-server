@@ -38,7 +38,7 @@ jobs:
       # -------------------
       - name: Build & Push API
         run: |
-          IMAGE=ghcr.io/${{ github.repository }}-api:${{ steps.vars.outputs.sha_short }}
+          IMAGE=ghcr.io/${{ vars.GHCR_OWNER }}/${{ vars.GHCR_IMAGE }}-api:${{ steps.vars.outputs.sha_short }}
 
           docker build \
             -t $IMAGE \
@@ -48,11 +48,11 @@ jobs:
           docker push $IMAGE
 
       # -------------------
-      # BUILD & PUSH WORKER (zakomentowane)
+      # BUILD & PUSH WORKER (opcjonalnie)
       # -------------------
       # - name: Build & Push Worker
       #   run: |
-      #     IMAGE=ghcr.io/${{ github.repository }}-worker:${{ steps.vars.outputs.sha_short }}
+      #     IMAGE=ghcr.io/${{ vars.GHCR_OWNER }}/${{ vars.GHCR_IMAGE }}-worker:${{ steps.vars.outputs.sha_short }}
 
       #     docker build \
       #       -t $IMAGE \
@@ -74,7 +74,7 @@ jobs:
       # -------------------
       - name: Deploy API
         run: |
-          IMAGE=ghcr.io/${{ github.repository }}-api:${{ steps.vars.outputs.sha_short }}
+          IMAGE=ghcr.io/${{ vars.GHCR_OWNER }}/${{ vars.GHCR_IMAGE }}-api:${{ steps.vars.outputs.sha_short }}
 
           kubectl set image deployment/go-api \
             go-api=$IMAGE
@@ -82,11 +82,11 @@ jobs:
           kubectl rollout status deployment/go-api
 
       # -------------------
-      # DEPLOY WORKER (zakomentowane)
+      # DEPLOY WORKER (opcjonalnie)
       # -------------------
       # - name: Deploy Worker
       #   run: |
-      #     IMAGE=ghcr.io/${{ github.repository }}-worker:${{ steps.vars.outputs.sha_short }}
+      #     IMAGE=ghcr.io/${{ vars.GHCR_OWNER }}/${{ vars.GHCR_IMAGE }}-worker:${{ steps.vars.outputs.sha_short }}
 
       #     kubectl set image deployment/go-worker \
       #       go-worker=$IMAGE
