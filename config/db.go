@@ -43,6 +43,5 @@ func InitDB(ctx context.Context, cfg env.DBConfig, log logger.Logger, runMigrati
 		log.Info("MySQL connected (migrations skipped)", zap.String("database", cfg.DBName))
 	}
 
-	log.Info("MySQL connected and migrations applied", zap.String("database", cfg.DBName))
 	return db, nil
 }

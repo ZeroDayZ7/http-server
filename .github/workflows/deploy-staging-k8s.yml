@@ -1,4 +1,4 @@
-name: Go Kubernetes Deployment
+name: Ghost Ops - API & Worker Deployment
 
 on:
   push:
@@ -46,27 +46,31 @@ jobs:
           push: true
           tags: ghcr.io/${{ steps.vars.outputs.owner_lc }}/http-server-worker:${{ steps.vars.outputs.sha_short }}
 
-      # --- Aktualizacja obrazów w YAMLach (GitOps) ---
-      - name: Update YAML Images
+      # --- ENTERPRISE GITOPS: Aktualizacja OSOBNEGO repozytorium infrastruktury ---
+      - name: Update Infrastructure Repo
+        env:
+          INFRA_TOKEN: ${{ secrets.INFRA_REPO_TOKEN }}
+          SHA: ${{ steps.vars.outputs.sha_short }}
+          OWNER: ${{ steps.vars.outputs.owner_lc }}
         run: |
-          SHA=${{ steps.vars.outputs.sha_short }}
-          OWNER=${{ steps.vars.outputs.owner_lc }}
+          # 1. Konfiguracja tożsamości Gita
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
 
-          echo "Updating manifests with owner: $OWNER and sha: $SHA"
+          # 2. Klonowanie repozytorium INFRA (używamy PAT do autoryzacji)
+          # Zwróć uwagę na nazwę repo: k3s-gitops-infra
+          git clone https://$INFRA_TOKEN@github.com/${{ github.repository_owner }}/k3s-gitops-infra.git temp_infra
 
-          # Ścieżka do Twoich plików w overlays/staging
-          MANIFEST_DIR="k8s/overlays/staging"
+          cd temp_infra
 
-          sed -i "s|image: ghcr.io/.*/http-server-api:.*|image: ghcr.io/$OWNER/http-server-api:$SHA|g" $MANIFEST_DIR/deployment.yaml
-          sed -i "s|image: ghcr.io/.*/http-server-worker:.*|image: ghcr.io/$OWNER/http-server-worker:$SHA|g" $MANIFEST_DIR/worker-deployment.yaml
+          # 3. Aktualizacja tagów obrazów w nowej strukturze folderów
+          # Szukamy linii z obrazem i podmieniamy na nowy SHA
+          echo "Updating images to version: $SHA"
 
-      - name: Commit & Push changes
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
+          sed -i "s|image: ghcr.io/.*/http-server-api:.*|image: ghcr.io/$OWNER/http-server-api:$SHA|g" overlays/staging/api/deployment.yaml
+          sed -i "s|image: ghcr.io/.*/http-server-worker:.*|image: ghcr.io/$OWNER/http-server-worker:$SHA|g" overlays/staging/worker/deployment.yaml
 
-          # Dodajemy zmienione pliki z poprawnej ścieżki
-          git add k8s/overlays/staging/deployment.yaml k8s/overlays/staging/worker-deployment.yaml
-
-          git commit -m "Deploy: images update to ${{ steps.vars.outputs.sha_short }}" || echo "No changes"
-          git push
+          # 4. Commit i Push zmian do repozytorium INFRA
+          git add .
+          git commit -m "Deploy: API & Worker update to $SHA (triggered by http-server commit)" || echo "No changes to commit"
+          git push origin main
