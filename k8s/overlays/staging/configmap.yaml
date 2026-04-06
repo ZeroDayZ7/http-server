@@ -22,7 +22,7 @@ data:
   WRITE_TIMEOUT_SEC: "10"
   SHUTDOWN_TIMEOUT_SEC: "5"
 
-  # Database (MySQL) - Host zmieniony na nazwę serwisu w K8s
+  # Database (MySQL)
   MYSQL_HOST: "mysql"
   MYSQL_PORT: "3306"
   MYSQL_DATABASE: "portfolio_db"
@@ -32,7 +32,7 @@ data:
   DB_MAX_IDLE_CONNS: "10"
   DB_CONN_MAX_LIFETIME_MIN: "30"
 
-  # Redis - Host zmieniony na nazwę serwisu w K8s
+  # Redis
   REDIS_HOST: "redis"
   REDIS_PORT: "6379"
   REDIS_DB: "0"
@@ -52,6 +52,8 @@ data:
   OTEL_ENABLED: "false"
 
   # Networking
-  PORT: "8080" # Ustawiamy 8080 zgodnie z Twoim Service/Deployment
+  PORT: "8080"
   WORKER_PORT: "8081"
   CONFIG_SOURCE: "auto"
+
+  ENV: "staging"

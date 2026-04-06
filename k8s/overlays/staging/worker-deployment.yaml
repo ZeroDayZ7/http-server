@@ -19,27 +19,27 @@ spec:
         - name: go-worker
           image: ghcr.io/zerodayz7/http-server-worker:latest
           ports:
-            - containerPort: 8080
+            - containerPort: 8081
           envFrom:
             - configMapRef:
                 name: api-config
           env:
-            - name: MYSQL_USER
+            - name: DB_USER
               valueFrom:
                 secretKeyRef:
                   name: mysql-secret
                   key: user
-            - name: MYSQL_PASSWORD
+            - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: mysql-secret
                   key: password
-            - name: MYSQL_DATABASE
+            - name: DB_NAME
               valueFrom:
                 secretKeyRef:
                   name: mysql-secret
                   key: database
-            - name: MYSQL_HOST
+            - name: DB_HOST
               value: "mysql"
             - name: REDIS_PASSWORD
               valueFrom:
