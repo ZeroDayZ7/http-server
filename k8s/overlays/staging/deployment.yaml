@@ -18,7 +18,7 @@ spec:
 
       containers:
         - name: go-api
-          image: ghcr.io/zerodayz7/http-server-api:71f1860
+          image: ghcr.io/zerodayz7/http-server-api:a903b71
           ports:
             - containerPort: 8080
 
