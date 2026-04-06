@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - deployment.yaml
+  - worker-deployment.yaml
   - service.yaml
   - ingress.yaml
   - databases.yaml
