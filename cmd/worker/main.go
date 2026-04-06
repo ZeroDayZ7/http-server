@@ -60,7 +60,7 @@ func main() {
 	g, gCtx := errgroup.WithContext(ctx)
 
 	// infra init
-	db, err := config.InitDB(ctx, cfg.Database, log)
+	db, err := config.InitDB(ctx, cfg.Database, log, false)
 	if err != nil {
 		log.Fatal("Database initialization failed", zap.Error(err))
 	}

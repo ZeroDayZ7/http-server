@@ -15,12 +15,12 @@ var validate = validator.New()
 func LoadConfig(cfg *Config) error {
 	setDefaults()
 
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
 	viper.BindEnv("WORKER_PORT")
 	viper.BindEnv("DB_HOST")
 	viper.BindEnv("ENV")
-
-	viper.AutomaticEnv()
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 	// AUTO detect pliku .env
 	if fileExists(".env") {
