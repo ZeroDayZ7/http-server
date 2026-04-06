@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+  namespace: staging
+data:
+  # Server Configuration
+  APP_NAME: "http-server"
+  APP_VERSION: "2.1.1"
+  ENV: "development"
+  SERVER_HEADER: "ZeroDayZ7"
+
+  # Server Performance & Routing
+  PREFORK: "false"
+  CASE_SENSITIVE: "true"
+  STRICT_ROUTING: "true"
+  BODY_LIMIT_MB: "2"
+
+  # Timeouts
+  IDLE_TIMEOUT_SEC: "30"
+  READ_TIMEOUT_SEC: "5"
+  WRITE_TIMEOUT_SEC: "10"
+  SHUTDOWN_TIMEOUT_SEC: "5"
+
+  # Database (MySQL) - Host zmieniony na nazwę serwisu w K8s
+  MYSQL_HOST: "mysql"
+  MYSQL_PORT: "3306"
+  MYSQL_DATABASE: "portfolio_db"
+
+  # Database Connection Pool
+  DB_MAX_OPEN_CONNS: "50"
+  DB_MAX_IDLE_CONNS: "10"
+  DB_CONN_MAX_LIFETIME_MIN: "30"
+
+  # Redis - Host zmieniony na nazwę serwisu w K8s
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+
+  # CORS & Networking
+  CORS_ALLOW_ORIGINS: "https://twoja-domena-frontu.pl,http://localhost:3000,http://api.local"
+  CORS_ALLOW_METHODS: "GET,POST,OPTIONS,PUT,DELETE"
+  CORS_ALLOW_HEADERS: "Origin,Content-Type,Accept,Authorization"
+  CORS_ALLOW_CREDENTIALS: "true"
+
+  # Rate Limiting
+  RATE_LIMIT_MAX: "100"
+  RATE_LIMIT_WINDOW_SEC: "60"
+
+  # Worker & Observability
+  WORKER_FLUSH_INTERVAL: "10s"
+  OTEL_ENABLED: "false"
+
+  # Networking
+  PORT: "8080" # Ustawiamy 8080 zgodnie z Twoim Service/Deployment
+  WORKER_PORT: "8081"
+  CONFIG_SOURCE: "auto"

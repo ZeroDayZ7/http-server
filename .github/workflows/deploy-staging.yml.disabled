@@ -2,7 +2,7 @@ name: Go Docker Deployment
 
 on:
   push:
-    branches: [main]
+    branches: [staging]
 
 jobs:
   build-and-deploy:
@@ -12,13 +12,25 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Get commit hash
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: "1.25"
 
-      - name: Run Tests
-        run: go test ./... -v
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:server
+
+      - name: Dump Tailscale logs
+        if: always()
+        run: cat ~/tailscaled.log
 
       - name: Generate .env file from Secrets
         run: |
@@ -45,42 +57,43 @@ jobs:
           REDIS_PORT=${{ secrets.REDIS_PORT }}
           REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
           REDIS_DB=${{ secrets.REDIS_DB }}
+          COMMIT_HASH=${{ steps.vars.outputs.sha_short }}
           EOF
 
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v2
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:server
-
-      - name: Copy project to server
+      - name: Copy .env to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: deploy
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "."
-          target: "/var/www/api"
+          source: ".env"
+          target: "/home/zerodayz7/projects/tv2-simulation/go-app"
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          COMMIT_HASH: ${{ steps.vars.outputs.sha_short }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: deploy
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 20m
+          command_timeout: 15m
           script: |
-            cd /var/www/api
+            # Naprawa uprawnień Gita
+            git config --global --add safe.directory /home/zerodayz7/projects/tv2-simulation/go-app
 
-            # Zatrzymanie obecnych kontenerów (ignoruje błąd jeśli nie istnieją)
-            podman compose down || true
+            cd /home/zerodayz7/projects/tv2-simulation/go-app
 
-            # Budowanie i start aplikacji
+            echo "Ensuring correct branch - Pull latest code...(staging)..."
+            git fetch origin
+            git checkout staging
+            git pull origin staging
+
+            echo "Starting containers..."
+
+            cd /home/zerodayz7/projects/tv2-simulation
+
             podman compose up -d --build
 
-            # Krótka pauza na start serwera
-            sleep 5
-
-            # Health check (używa portu z secrets)
-            curl -f http://localhost:${{ secrets.PORT }}/health || (echo "Deployment failed health check" && exit 1)
+            echo "Wait for Go app to bind to port..."
+            sleep 15

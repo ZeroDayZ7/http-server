@@ -5,7 +5,7 @@ import "time"
 type ServerConfig struct {
 	AppName       string        `mapstructure:"APP_NAME" validate:"required"`
 	Port          string        `mapstructure:"PORT" validate:"required,numeric"`
-	HealthPort    string        `mapstructure:"HEALTH_PORT" validate:"required,numeric"`
+	WorkerPort    string        `mapstructure:"WORKER_PORT" validate:"required,numeric"`
 	BodyLimitMB   int           `mapstructure:"BODY_LIMIT_MB"`
 	Env           string        `mapstructure:"ENV" validate:"required,oneof=development staging production"`
 	AppVersion    string        `mapstructure:"APP_VERSION"`
@@ -19,11 +19,11 @@ type ServerConfig struct {
 }
 
 type DBConfig struct {
-	User            string        `mapstructure:"MYSQL_USER" validate:"required"`
-	Password        string        `mapstructure:"MYSQL_PASSWORD" validate:"required"`
-	Host            string        `mapstructure:"MYSQL_HOST" validate:"required"`
-	Port            string        `mapstructure:"MYSQL_PORT" validate:"required,numeric"`
-	DBName          string        `mapstructure:"MYSQL_DATABASE" validate:"required"`
+	User            string        `mapstructure:"DB_USER" validate:"required"`
+	Password        string        `mapstructure:"DB_PASSWORD" validate:"required"`
+	Host            string        `mapstructure:"DB_HOST" validate:"required"`
+	Port            string        `mapstructure:"DB_PORT" validate:"required,numeric"`
+	DBName          string        `mapstructure:"DB_NAME" validate:"required"`
 	MaxOpenConns    int           `mapstructure:"DB_MAX_OPEN_CONNS"`
 	MaxIdleConns    int           `mapstructure:"DB_MAX_IDLE_CONNS"`
 	ConnMaxLifetime time.Duration `mapstructure:"DB_CONN_MAX_LIFETIME"`
