@@ -15,6 +15,10 @@ var validate = validator.New()
 func LoadConfig(cfg *Config) error {
 	setDefaults()
 
+	viper.BindEnv("WORKER_PORT")
+	viper.BindEnv("DB_HOST")
+	viper.BindEnv("ENV")
+
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
