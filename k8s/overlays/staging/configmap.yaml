@@ -23,9 +23,9 @@ data:
   SHUTDOWN_TIMEOUT_SEC: "5"
 
   # Database (MySQL)
-  MYSQL_HOST: "mysql"
-  MYSQL_PORT: "3306"
-  MYSQL_DATABASE: "portfolio_db"
+  DB_HOST: "mysql"
+  DB_PORT: "3306"
+  DB_NAME: "portfolio_db"
 
   # Database Connection Pool
   DB_MAX_OPEN_CONNS: "50"
