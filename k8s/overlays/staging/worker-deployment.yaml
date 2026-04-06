@@ -17,7 +17,7 @@ spec:
         - name: ghcr-secret
       containers:
         - name: go-worker
-          image: ghcr.io/zerodayz7/http-server-worker:latest
+          image: ghcr.io/zerodayz7/http-server-worker:3b1c9c9
           ports:
             - containerPort: 8080
           envFrom:
