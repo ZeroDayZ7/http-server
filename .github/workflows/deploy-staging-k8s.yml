@@ -18,9 +18,7 @@ jobs:
       - name: Prepare variables
         id: vars
         run: |
-          # Pobieramy krótki hash commita
           echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-          # Zamieniamy nazwę właściciela repo na małe litery (wymóg Dockera/GHCR)
           echo "owner_lc=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_OUTPUT
 
       - name: Login to GHCR
@@ -56,16 +54,19 @@ jobs:
 
           echo "Updating manifests with owner: $OWNER and sha: $SHA"
 
-          # Aktualizacja API (używamy małych liter dla ownera)
-          sed -i "s|image: ghcr.io/.*/http-server-api:.*|image: ghcr.io/$OWNER/http-server-api:$SHA|g" staging/deployment.yaml
+          # Ścieżka do Twoich plików w overlays/staging
+          MANIFEST_DIR="k8s/overlays/staging"
 
-          # Aktualizacja Workera (używamy małych liter dla ownera)
-          sed -i "s|image: ghcr.io/.*/http-server-worker:.*|image: ghcr.io/$OWNER/http-server-worker:$SHA|g" staging/worker-deployment.yaml
+          sed -i "s|image: ghcr.io/.*/http-server-api:.*|image: ghcr.io/$OWNER/http-server-api:$SHA|g" $MANIFEST_DIR/deployment.yaml
+          sed -i "s|image: ghcr.io/.*/http-server-worker:.*|image: ghcr.io/$OWNER/http-server-worker:$SHA|g" $MANIFEST_DIR/worker-deployment.yaml
 
       - name: Commit & Push changes
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add staging/deployment.yaml staging/worker-deployment.yaml
+
+          # Dodajemy zmienione pliki z poprawnej ścieżki
+          git add k8s/overlays/staging/deployment.yaml k8s/overlays/staging/worker-deployment.yaml
+
           git commit -m "Deploy: images update to ${{ steps.vars.outputs.sha_short }}" || echo "No changes"
           git push
