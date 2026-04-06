@@ -7,7 +7,7 @@ data:
   # Server Configuration
   APP_NAME: "http-server"
   APP_VERSION: "2.1.1"
-  ENV: "development"
+  ENV: "staging"
   SERVER_HEADER: "ZeroDayZ7"
 
   # Server Performance & Routing
@@ -55,5 +55,3 @@ data:
   PORT: "8080"
   WORKER_PORT: "8081"
   CONFIG_SOURCE: "auto"
-
-  ENV: "staging"
