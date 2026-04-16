@@ -12,3 +12,9 @@ go mod edit -go 1.26.2
 go mod tidy
 
 go install golang.org/x/vuln/cmd/govulncheck@latest
+
+# 1. Upewnij się, że jesteś w głównym folderze projektu
+cd C:\Users\Neo\Desktop\WWW\go\http-server
+
+# 2. Uruchom mockery z precyzyjnymi ustawieniami
+mockery --dir=internal/service --all --output=internal/service/mocks --outpkg=mocks
