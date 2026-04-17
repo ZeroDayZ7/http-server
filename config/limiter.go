@@ -12,9 +12,21 @@ import (
 	"github.com/zerodayz7/http-server/internal/errors"
 )
 
+type LimitGroup string
+
+const (
+	LimitApp    LimitGroup = "app"
+	LimitGlobal LimitGroup = "global"
+	LimitHealth LimitGroup = "health"
+	LimitVisits LimitGroup = "visits"
+)
+
 var (
 	storage     fiber.Storage
 	storageOnce sync.Once
+
+	limiters     = make(map[LimitGroup]fiber.Handler)
+	limitersLock sync.RWMutex
 )
 
 func getStorage(cfg *env.Config) fiber.Storage {
@@ -34,19 +46,42 @@ func getStorage(cfg *env.Config) fiber.Storage {
 	return storage
 }
 
-func NewLimiter(cfg *env.Config, group string) fiber.Handler {
-	presets := map[string]struct {
+func GetLimiter(cfg *env.Config, group LimitGroup) fiber.Handler {
+
+	limitersLock.RLock()
+	if l, exists := limiters[group]; exists {
+		limitersLock.RUnlock()
+		return l
+	}
+	limitersLock.RUnlock()
+
+	limitersLock.Lock()
+	defer limitersLock.Unlock()
+
+	if l, exists := limiters[group]; exists {
+		return l
+	}
+
+	l := createLimiter(cfg, group)
+	limiters[group] = l
+
+	return l
+}
+
+func createLimiter(cfg *env.Config, group LimitGroup) fiber.Handler {
+	presets := map[LimitGroup]struct {
 		Max    int
 		Window time.Duration
 	}{
-		"global": {Max: cfg.RateLimit.Max, Window: cfg.RateLimit.Window},
-		"health": {Max: 50, Window: 1 * time.Minute},
-		"visits": {Max: 30, Window: 30 * time.Minute},
+		LimitApp:    {Max: cfg.RateLimit.Max, Window: cfg.RateLimit.Window},
+		LimitGlobal: {Max: 100, Window: 1 * time.Minute},
+		LimitHealth: {Max: 50, Window: 1 * time.Minute},
+		LimitVisits: {Max: 30, Window: 30 * time.Minute},
 	}
 
 	limit, ok := presets[group]
 	if !ok {
-		limit = presets["global"]
+		limit = presets[LimitGlobal]
 	}
 
 	limiterConfig := limiter.Config{
@@ -61,7 +96,7 @@ func NewLimiter(cfg *env.Config, group string) fiber.Handler {
 		},
 		LimitReached: func(c *fiber.Ctx) error {
 			return errors.ErrTooManyRequests.
-				WithDetail("group", group).
+				WithDetail("group", string(group)).
 				WithDetail("ip", c.IP()).
 				WithDetail("path", c.Path())
 		},

@@ -20,7 +20,7 @@ func SetupRoutes(
 	SetupStatsRoutes(app, interactionHandler, cfg)
 
 	api := app.Group("/")
-	api.Use(config.NewLimiter(cfg, "global"))
+	api.Use(config.GetLimiter(cfg, config.LimitGlobal))
 
 	SetupNotFoundHandler(app, log)
 }
