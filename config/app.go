@@ -42,7 +42,7 @@ func NewFiberApp(cfg *env.Config, log logger.Logger) *fiber.App {
 
 	app.Use(cors.New(CorsConfig(cfg)))
 	app.Use(helmet.New(HelmetConfig()))
-	// app.Use(NewLimiter(cfg, "global"))
+	app.Use(GetLimiter(cfg, LimitApp))
 	app.Use(compress.New(CompressConfig()))
 
 	return app

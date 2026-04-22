@@ -6,11 +6,13 @@ import (
 	"go.uber.org/zap"
 )
 
-func SetupFallbackHandlers(app *fiber.App, log logger.Logger) {
+func SetupFavicon(app *fiber.App) {
 	app.Get("/favicon.ico", func(c *fiber.Ctx) error {
 		return c.SendStatus(fiber.StatusNoContent)
 	})
+}
 
+func SetupNotFoundHandler(app *fiber.App, log logger.Logger) {
 	app.Use(func(c *fiber.Ctx) error {
 		log.Warn("404 - not found",
 			zap.String("path", c.Path()),

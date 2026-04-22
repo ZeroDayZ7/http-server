@@ -11,7 +11,7 @@ import (
 func SetupHealthRoutes(app *fiber.App, cfg *env.Config) {
 	health := app.Group("/health")
 
-	health.Use(config.NewLimiter(cfg, "health"))
+	health.Use(config.GetLimiter(cfg, config.LimitHealth))
 
 	health.Get("/", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
