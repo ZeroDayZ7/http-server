@@ -26,7 +26,7 @@ RUN addgroup -S appgroup && \
 
 WORKDIR /home/appuser
 
-COPY --from=builder /app/server .
+COPY --from=builder --chown=appuser:appgroup /app/server .
 COPY --from=builder --chown=appuser:appgroup /src/migrations ./migrations
 
 RUN chmod 500 ./server && \
