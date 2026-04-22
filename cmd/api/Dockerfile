@@ -12,10 +12,9 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -trimpath -ldflags="-w -s" -o /app/server ./cmd/api
 
-
 FROM alpine:3.19.1 AS final
 
-LABEL org.opencontainers.image.source="https://github.com/twoj-user/twoj-repo"
+LABEL org.opencontainers.image.source="https://github.com/ZeroDayZ7/http-server"
 LABEL org.opencontainers.image.description="Hardened Go API"
 
 RUN apk update && \
