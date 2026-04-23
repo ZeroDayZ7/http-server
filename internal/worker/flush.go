@@ -51,7 +51,7 @@ func (w *InteractionWorker) safeFlush(ctx context.Context, batch *eventBatch) {
 			return
 		}
 	}
-
+	// If flushErr is still not nil, it means all retries failed
 	if flushErr != nil {
 		w.logger.Warn("DB flush failed - requeueing batch", zap.Error(flushErr), zap.Int("batch_size", len(ids)))
 		return
