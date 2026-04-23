@@ -1,22 +1,35 @@
-# Dockerfile.worker
+FROM golang:1.26-alpine AS builder
 
-FROM golang:1.25-alpine AS builder
-
-WORKDIR /app
-
+RUN apk add --no-cache ca-certificates git tzdata
+WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
-
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o worker ./cmd/worker
+# Dodano -trimpath dla bezpieczeństwa logów
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -trimpath -ldflags="-w -s" -o /app/worker ./cmd/worker
 
-FROM alpine:latest
+FROM alpine:3.19 AS final
 
-WORKDIR /app
+# Dodano LABEL dla porządku w GitHubie
+LABEL org.opencontainers.image.source="https://github.com/ZeroDayZ7/http-server"
+LABEL org.opencontainers.image.description="Hardened Go Worker"
 
-COPY --from=builder /app/worker .
+# Dodano apk update i czyszczenie cache
+RUN apk update && \
+    apk add --no-cache ca-certificates tzdata && \
+    rm -rf /var/cache/apk/*
 
-COPY --from=builder /app/migrations ./migrations
+RUN addgroup -S workergroup && \
+    adduser -S -u 10002 -g workergroup workeruser
 
-CMD ["./worker"]
+WORKDIR /home/workeruser
+
+COPY --from=builder --chown=workeruser:workergroup /app/worker .
+
+RUN chmod 500 ./worker
+
+USER workeruser
+
+ENTRYPOINT ["./worker"]

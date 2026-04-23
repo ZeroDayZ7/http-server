@@ -18,6 +18,10 @@ func LoadConfig(cfg *Config) error {
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
+	viper.BindEnv("WORKER_PORT")
+	viper.BindEnv("DB_HOST")
+	viper.BindEnv("ENV")
+
 	// AUTO detect pliku .env
 	if fileExists(".env") {
 		viper.SetConfigFile(".env")

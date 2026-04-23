@@ -43,7 +43,7 @@ func main() {
 	defer stop()
 
 	// 3. Inicjalizacja infrastruktury
-	db, err := config.InitDB(ctx, cfg.Database, log)
+	db, err := config.InitDB(ctx, cfg.Database, log, true)
 	if err != nil {
 		log.Fatal("Database initialization failed", zap.Error(err))
 	}

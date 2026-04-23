@@ -16,7 +16,6 @@ func (w *InteractionWorker) safeFlush(ctx context.Context, batch *eventBatch) {
 		return
 	}
 
-	batch.clear()
 	w.flushInProgress.Store(true)
 	defer w.flushInProgress.Store(false)
 
@@ -58,6 +57,7 @@ func (w *InteractionWorker) safeFlush(ctx context.Context, batch *eventBatch) {
 		return
 	}
 
+	batch.clear()
 	w.flushDuration.Record(flushCtx, time.Since(startTime).Seconds())
 	w.eventCounter.Add(flushCtx, int64(len(ids)))
 	w.markIdempotentBatch(flushCtx, ids)

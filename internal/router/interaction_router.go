@@ -11,7 +11,7 @@ import (
 
 func SetupStatsRoutes(app *fiber.App, h *handler.InteractionHandler, cfg *env.Config) {
 	stats := app.Group("/stats")
-	stats.Use(config.NewLimiter(cfg, "visits"))
+	stats.Use(config.GetLimiter(cfg, config.LimitVisits))
 
 	stats.Get("/interactions",
 		middleware.ValidateQuery[validator.FingerprintRequest](),

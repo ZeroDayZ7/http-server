@@ -14,6 +14,8 @@ func NewLogger(env Env) Logger {
 	switch env {
 	case EnvProduction:
 		core = createProductionCore()
+	case EnvStaging:
+		core = createStagingCore()
 	case EnvTest:
 		core = createTestCore()
 	default: // Development
@@ -31,16 +33,17 @@ func NewLogger(env Env) Logger {
 // --- POMOCNICZE FUNKCJE KREUJĄCE ---
 
 func createProductionCore() zapcore.Core {
-	fileEncoder := zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())
+	encoderConfig := zap.NewProductionEncoderConfig()
+	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	encoder := zapcore.NewJSONEncoder(encoderConfig)
+	return zapcore.NewCore(encoder, zapcore.AddSync(os.Stdout), zap.InfoLevel)
+}
 
-	logFile := zapcore.AddSync(&lumberjack.Logger{
-		Filename:   "logs/app.log",
-		MaxSize:    10,
-		MaxBackups: 5,
-		Compress:   true,
-	})
-
-	return zapcore.NewCore(fileEncoder, logFile, zap.InfoLevel)
+func createStagingCore() zapcore.Core {
+	encoderConfig := zap.NewProductionEncoderConfig()
+	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	encoder := zapcore.NewJSONEncoder(encoderConfig)
+	return zapcore.NewCore(encoder, zapcore.AddSync(os.Stdout), zap.DebugLevel)
 }
 
 func createDevelopmentCore() zapcore.Core {
