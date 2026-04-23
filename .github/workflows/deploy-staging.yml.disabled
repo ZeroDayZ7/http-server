@@ -1,0 +1,99 @@
+name: Go Docker Deployment
+
+on:
+  push:
+    branches: [staging]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Get commit hash
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:server
+
+      - name: Dump Tailscale logs
+        if: always()
+        run: cat ~/tailscaled.log
+
+      - name: Generate .env file from Secrets
+        run: |
+          cat <<EOF > .env
+          APP_NAME=${{ secrets.APP_NAME }}
+          APP_VERSION=${{ secrets.APP_VERSION }}
+          ENV=production
+          PORT=${{ secrets.PORT }}
+          SERVER_HEADER=${{ secrets.SERVER_HEADER }}
+          PREFORK=${{ secrets.PREFORK }}
+          CASE_SENSITIVE=${{ secrets.CASE_SENSITIVE }}
+          STRICT_ROUTING=${{ secrets.STRICT_ROUTING }}
+          BODY_LIMIT_MB=${{ secrets.BODY_LIMIT_MB }}
+          IDLE_TIMEOUT_SEC=${{ secrets.IDLE_TIMEOUT_SEC }}
+          READ_TIMEOUT_SEC=${{ secrets.READ_TIMEOUT_SEC }}
+          WRITE_TIMEOUT_SEC=${{ secrets.WRITE_TIMEOUT_SEC }}
+          SHUTDOWN_TIMEOUT_SEC=${{ secrets.SHUTDOWN_TIMEOUT_SEC }}
+          MYSQL_HOST=${{ secrets.MYSQL_HOST }}
+          MYSQL_PORT=${{ secrets.MYSQL_PORT }}
+          MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
+          MYSQL_USER=${{ secrets.MYSQL_USER }}
+          MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
+          REDIS_HOST=${{ secrets.REDIS_HOST }}
+          REDIS_PORT=${{ secrets.REDIS_PORT }}
+          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+          REDIS_DB=${{ secrets.REDIS_DB }}
+          COMMIT_HASH=${{ steps.vars.outputs.sha_short }}
+          EOF
+
+      - name: Copy .env to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: deploy
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: ".env"
+          target: "/home/zerodayz7/projects/tv2-simulation/go-app"
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          COMMIT_HASH: ${{ steps.vars.outputs.sha_short }}
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: deploy
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 15m
+          script: |
+            # Naprawa uprawnień Gita
+            git config --global --add safe.directory /home/zerodayz7/projects/tv2-simulation/go-app
+
+            cd /home/zerodayz7/projects/tv2-simulation/go-app
+
+            echo "Ensuring correct branch - Pull latest code...(staging)..."
+            git fetch origin
+            git checkout staging
+            git pull origin staging
+
+            echo "Starting containers..."
+
+            cd /home/zerodayz7/projects/tv2-simulation
+
+            podman compose up -d --build
+
+            echo "Wait for Go app to bind to port..."
+            sleep 15
